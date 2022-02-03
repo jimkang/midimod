@@ -1,0 +1,25 @@
+{
+  "name": "midimod",
+  "version": "1.0.0",
+  "description": "Scripts for changing midi files",
+  "main": "midimod.js",
+  "private": true,
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:jimkang/midimod.git"
+  },
+  "keywords": [],
+  "author": "Jim Kang",
+  "license": "Polyform Noncommercial License 1.0",
+  "bugs": {
+    "url": "https://github.com/jimkang/midimod/issues"
+  },
+  "homepage": "https://github.com/jimkang/midimod",
+  "devDependencies": {
+    "eslint": "^7.24.0"
+  },
+  "dependencies": {
+    "midi-file": "^1.2.2"
+  }
+}
