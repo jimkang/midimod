@@ -117,16 +117,22 @@ function eventsForLeadBar(offset) {
   const octave = 2 + probable.roll(5);
   const root = floor + octave * 12 + offset;
   const barMode = probable.pick(modes);
-  return range(4).map(() => probable.pick(leadBeatPatterns)({ root, mode: barMode })).flat();
+  var events = probable.pick(leadBeatPatterns)({ root, mode: barMode });
+  var badEvent = events.find(e => isNaN(e.noteNumber)); 
+  if (badEvent) {
+    throw new Error(`Bad event: ${JSON.stringify(badEvent, null, 2)}`);
+  }
+  return events;
 }
 
 function runUp({ root, mode }) {
   const startPitch = root + probable.pick(mode);
-  return range(4).map(i => 
+  return range(16).map(i => 
     notePair({
+      creator: 'runUp',
       deltaTime: 32,
       noteNumber: getPitchInMode(startPitch, i, mode),
-      velocity: getLeadBeatVelocity(i)
+      velocity: getLeadBeatVelocity(i % 4)
     })
   ).flat();
 }
@@ -134,40 +140,44 @@ function runUp({ root, mode }) {
 // Code duplication crime
 function runDown({ root, mode }) {
   const startPitch = root + probable.pick(mode);
-  return range(4, -1, -1).map(i => 
+  return range(16, -1, -1).map(i => 
     notePair({
+      creator: 'runDown',
       deltaTime: 32,
       noteNumber: getPitchInMode(startPitch, i, mode),
-      velocity: getLeadBeatVelocity(4 - i)
+      velocity: getLeadBeatVelocity(4 - (i % i))
     })
   ).flat();
 }
 
 function arpeggioUp({ root, mode }) {
   const startPitch = root + probable.pick(mode);
-  return range(4).map(i => 
+  return range(16).map(i => 
     notePair({
+      creator: 'arpeggioUp',
       deltaTime: 32,
       noteNumber: getPitchInMode(startPitch, i * 2, mode),
-      velocity: getLeadBeatVelocity(i)
+      velocity: getLeadBeatVelocity(i % 4)
     })
   ).flat();
 }
 
 function arpeggioDown({ root, mode }) {
   const startPitch = root + probable.pick(mode);
-  return range(4, -1, 1).map(i => 
+  return range(16, -1, -1).map(i => 
     notePair({
+      creator: 'arpeggioDown',
       deltaTime: 32,
       noteNumber: getPitchInMode(startPitch, i * 2, mode),
-      velocity: getLeadBeatVelocity(4 - i)
+      velocity: getLeadBeatVelocity(4 - (i % 4))
     })
   ).flat();
 }
 
 function randomNotes({ root, mode }) {
-  return range(4).map(i => 
+  return range(16).map(i => 
     notePair({
+      creator: 'randomNotes',
       deltaTime: 32,
       noteNumber: getPitchInMode(root, probable.roll(mode.length), mode),
       velocity: probable.roll(32) + 48 + i === 0 ? 32 : 0,
@@ -177,9 +187,6 @@ function randomNotes({ root, mode }) {
 }
 
 function notePair({ deltaTime = 64, channel = 0, noteNumber, velocity = 64 }) {
-  if (!noteNumber) {
-    debugger;
-  }
   return [
     {
       deltaTime,
@@ -205,9 +212,6 @@ function getPitchInMode(root, degree, mode) {
   }
   const offset = degree % mode.length;
   const noteNumber = root + octave * 12 + mode[offset];
-  if (!noteNumber) {
-    debugger;
-  }
   return noteNumber;
 }
 
