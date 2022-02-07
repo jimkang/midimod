@@ -92,6 +92,7 @@ const progressionOctave = probable.roll(3);
 var rhythmTrack = measureRoots.map(eventsForRhythmBar).flat();
 var leadTrack = measureRoots.map(eventsForLeadBar).flat();
 
+// TODO: Write out two files.
 var midiObject = {
   header,
   // I can't figure out how to get DAWs to accept three tracks in a file.
@@ -114,11 +115,11 @@ function eventsForRhythmBar(offset) {
 }
 
 function eventsForLeadBar(offset) {
-  const octave = 1 + probable.roll(2);
+  const octave = 2 + probable.roll(4);
   const root = floor + octave * 12 + offset;
   const barMode = probable.pick(modes);
   var events = probable.pick(leadBeatPatterns)({ root, mode: barMode });
-  var badEvent = events.find(e => isNaN(e.noteNumber) | e.noteNumber > 8 * 12); 
+  var badEvent = events.find(e => isNaN(e.noteNumber)); 
   if (badEvent) {
     throw new Error(`Bad event: ${JSON.stringify(badEvent, null, 2)}`);
   }
