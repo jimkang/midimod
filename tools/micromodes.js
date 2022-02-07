@@ -12,12 +12,12 @@ var { range } = require('d3-array');
 
 if (process.argv.length < 5) {
   console.error(
-    'Usage: node micromodes <length in bars> <output file> <rhythm or lead> [seed]'
+    'Usage: node micromodes <number of sections> <output file> <rhythm or lead> [seed]'
   );
   process.exit(1);
 }
 
-const lengthInBars = +process.argv[2];
+const sectionCount = +process.argv[2];
 const outputPath = process.argv[3];
 const role = process.argv[4];
 const seed = process.argv.length > 5 ? process.argv[5] : randomId(5);
@@ -77,20 +77,19 @@ var modes = [
 var leadBeatPatterns = [
   runUp,
   runDown,
-  arpeggioUp,
-  arpeggioDown,
+  //arpeggioUp,
+  //arpeggioDown,
   randomNotes
 ];
 
-var progressionMode = probable.pick(modes);
-console.log('progressionMode', progressionMode);
+var rhythmTrack = [];
+var leadTrack = [];
 
-var measureRoots = range(lengthInBars/8).map(() => probable.shuffle(progressionMode)).flat();
-console.log('measureRoots', measureRoots);
-const progressionOctave = probable.roll(3);
-
-var rhythmTrack = measureRoots.map(eventsForRhythmBar).flat();
-var leadTrack = measureRoots.map(eventsForLeadBar).flat();
+for (let sectionIndex = 0; sectionIndex < sectionCount; ++sectionIndex) {
+  let { rhythmSection, leadSection } = tracksForSection(12);
+  rhythmTrack = rhythmTrack.concat(rhythmSection);
+  leadTrack = leadTrack.concat(leadSection);
+}
 
 // TODO: Write out two files.
 var midiObject = {
@@ -106,24 +105,42 @@ var outputMidi = writeMidi(midiObject);
 var outputBuffer = Buffer.from(outputMidi);
 fs.writeFileSync(path.join(__dirname, '..', outputPath), outputBuffer);
 
-function eventsForRhythmBar(offset) {
-  const noteNumber = floor + progressionOctave * 12 + offset;
-  return notePair({ noteNumber, velocity: 80 })
-    .concat(
-      range(7).map(() => notePair({ noteNumber })).flat()
-    );
-}
+function tracksForSection(sectionBarCount) {
+  var progressionMode = probable.pick(modes);
+  console.log('progressionMode', progressionMode);
 
-function eventsForLeadBar(offset) {
-  const octave = 2 + probable.roll(4);
-  const root = floor + octave * 12 + offset;
-  const barMode = probable.pick(modes);
-  var events = probable.pick(leadBeatPatterns)({ root, mode: barMode });
-  var badEvent = events.find(e => isNaN(e.noteNumber)); 
-  if (badEvent) {
-    throw new Error(`Bad event: ${JSON.stringify(badEvent, null, 2)}`);
+  const progressionOctave = probable.roll(3);
+  const sectionRoot = progressionOctave + probable.roll(12);
+  var measureRoots = range(sectionBarCount)
+    .map(
+      () => probable.shuffle(progressionMode)
+        .map(n => sectionRoot + n))
+    .flat();
+  console.log('measureRoots', measureRoots);
+
+  var rhythmSection = measureRoots.map(eventsForRhythmBar).flat();
+  var leadSection = measureRoots.map(eventsForLeadBar).flat();
+  return { rhythmSection, leadSection };
+
+  function eventsForRhythmBar(offset) {
+    const noteNumber = floor + progressionOctave * 12 + offset;
+    return notePair({ noteNumber, velocity: 80 })
+      .concat(
+        range(7).map(() => notePair({ noteNumber })).flat()
+      );
   }
-  return events;
+
+  function eventsForLeadBar() {
+    const octave = 2 + probable.roll(4);
+    const root = floor + octave * 12 + sectionRoot;
+    const barMode = probable.pick(modes);
+    var events = probable.pick(leadBeatPatterns)({ root, mode: barMode });
+    var badEvent = events.find(e => isNaN(e.noteNumber)); 
+    if (badEvent) {
+      throw new Error(`Bad event: ${JSON.stringify(badEvent, null, 2)}`);
+    }
+    return events;
+  }
 }
 
 function runUp({ root, mode }) {
@@ -189,8 +206,7 @@ function randomNotes({ root, mode }) {
       creator: 'randomNotes',
       deltaTime: 32,
       noteNumber: getPitchInMode(root, probable.roll(mode.length), mode),
-      velocity: probable.roll(32) + 48 + i === 0 ? 32 : 0,
-      channel: 1
+      velocity: probable.roll(32) + 48 + (i === 0 ? 32 : 0),
     })
   ).flat();
 }
@@ -217,9 +233,6 @@ function notePair({ deltaTime = 64, channel = 0, noteNumber, velocity = 64, crea
 
 // TODO: 7 degrees in modes, not 8.
 function getPitchInMode(root, degree, mode) {
-  if (degree < 0) {
-    debugger;
-  }
   // If the degree is negative, convert it to a
   // negative octave and a positive degree.
   // For example, a degree of -15 should become
