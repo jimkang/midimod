@@ -55,8 +55,6 @@ var infoTrack = [
   }
 ];
 
-const floor = 24;
-
 var modes = [
   // Ionian
   [0, 2, 4, 5, 7, 9, 11, 12],
@@ -74,19 +72,20 @@ var modes = [
   [0, 1, 3, 5, 6, 8, 10, 12]
 ];
 
-var leadBeatPatterns = [
-  runUp,
-  runDown,
-  //arpeggioUp,
-  //arpeggioDown,
-  randomNotes
-];
+var leadBeatPatternTable = probable.createTableFromSizes([
+  [2, runUp],
+  [2, runDown],
+  [1, arpeggioUp],
+  [1, arpeggioDown],
+  [8, randomNotes]
+]);
+
 
 var rhythmTrack = [];
 var leadTrack = [];
 
 for (let sectionIndex = 0; sectionIndex < sectionCount; ++sectionIndex) {
-  let { rhythmSection, leadSection } = tracksForSection(12);
+  let { rhythmSection, leadSection } = tracksForSection(4);
   rhythmTrack = rhythmTrack.concat(rhythmSection);
   leadTrack = leadTrack.concat(leadSection);
 }
@@ -109,32 +108,31 @@ function tracksForSection(sectionBarCount) {
   var progressionMode = probable.pick(modes);
   console.log('progressionMode', progressionMode);
 
-  const progressionOctave = probable.roll(3);
+  const progressionOctave = probable.roll(3) + 24;
   const sectionRoot = progressionOctave + probable.roll(12);
   var measureRoots = range(sectionBarCount)
     .map(
       () => probable.shuffle(progressionMode)
-        .map(n => sectionRoot + n))
+        .map(n => sectionRoot + progressionOctave + n))
     .flat();
   console.log('measureRoots', measureRoots);
 
   var rhythmSection = measureRoots.map(eventsForRhythmBar).flat();
-  var leadSection = measureRoots.map(eventsForLeadBar).flat();
+  var leadSection = range(measureRoots.length/2).map(eventsForLeadBar).flat();
   return { rhythmSection, leadSection };
 
-  function eventsForRhythmBar(offset) {
-    const noteNumber = floor + progressionOctave * 12 + offset;
-    return notePair({ noteNumber, velocity: 80 })
+  function eventsForRhythmBar(barRoot) {
+    return notePair({ noteNumber: barRoot, velocity: 80 })
       .concat(
-        range(7).map(() => notePair({ noteNumber })).flat()
+        range(7).map(() => notePair({ noteNumber: barRoot })).flat()
       );
   }
 
   function eventsForLeadBar() {
     const octave = 2 + probable.roll(4);
-    const root = floor + octave * 12 + sectionRoot;
+    const root = octave * 12 + sectionRoot;
     const barMode = probable.pick(modes);
-    var events = probable.pick(leadBeatPatterns)({ root, mode: barMode });
+    var events = leadBeatPatternTable.roll()({ root, mode: barMode });
     var badEvent = events.find(e => isNaN(e.noteNumber)); 
     if (badEvent) {
       throw new Error(`Bad event: ${JSON.stringify(badEvent, null, 2)}`);
@@ -148,7 +146,7 @@ function runUp({ root, mode }) {
   return range(16).map(i => 
     notePair({
       creator: 'runUp',
-      deltaTime: 32,
+      deltaTime: 64,
       noteNumber: getPitchInMode(startPitch, i, mode),
       velocity: getLeadBeatVelocity(i % 4)
     })
@@ -161,7 +159,7 @@ function runDown({ root, mode }) {
   return range(0, -16, -1).map(i => 
     notePair({
       creator: 'runDown',
-      deltaTime: 32,
+      deltaTime: 64,
       noteNumber: getPitchInMode(startPitch, i, mode),
       velocity: getLeadBeatVelocity(4 - (i % i))
     })
@@ -173,7 +171,7 @@ function arpeggioUp({ root, mode }) {
   return range(16).map(i => 
     notePair({
       creator: 'arpeggioUp',
-      deltaTime: 32,
+      deltaTime: 64,
       noteNumber: getPitchInMode(
         startPitch + Math.floor(i/4),
         getDegreeForArpeggio(mode.length, i % 4),
@@ -189,7 +187,7 @@ function arpeggioDown({ root, mode }) {
   return range(0, -16, -1).map(i => 
     notePair({
       creator: 'arpeggioDown',
-      deltaTime: 32,
+      deltaTime: 64,
       noteNumber: getPitchInMode(
         startPitch + Math.ceil(i / 4),
         getDegreeForArpeggio(mode.length, i % 4),
@@ -204,7 +202,7 @@ function randomNotes({ root, mode }) {
   return range(16).map(i => 
     notePair({
       creator: 'randomNotes',
-      deltaTime: 32,
+      deltaTime: 64,
       noteNumber: getPitchInMode(root, probable.roll(mode.length), mode),
       velocity: probable.roll(32) + 48 + (i === 0 ? 32 : 0),
     })
