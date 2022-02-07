@@ -114,11 +114,11 @@ function eventsForRhythmBar(offset) {
 }
 
 function eventsForLeadBar(offset) {
-  const octave = 2 + probable.roll(5);
+  const octave = 1 + probable.roll(2);
   const root = floor + octave * 12 + offset;
   const barMode = probable.pick(modes);
   var events = probable.pick(leadBeatPatterns)({ root, mode: barMode });
-  var badEvent = events.find(e => isNaN(e.noteNumber)); 
+  var badEvent = events.find(e => isNaN(e.noteNumber) | e.noteNumber > 8 * 12); 
   if (badEvent) {
     throw new Error(`Bad event: ${JSON.stringify(badEvent, null, 2)}`);
   }
@@ -140,7 +140,7 @@ function runUp({ root, mode }) {
 // Code duplication crime
 function runDown({ root, mode }) {
   const startPitch = root + probable.pick(mode);
-  return range(16, -1, -1).map(i => 
+  return range(0, -16, -1).map(i => 
     notePair({
       creator: 'runDown',
       deltaTime: 32,
@@ -156,7 +156,11 @@ function arpeggioUp({ root, mode }) {
     notePair({
       creator: 'arpeggioUp',
       deltaTime: 32,
-      noteNumber: getPitchInMode(startPitch, i * 2, mode),
+      noteNumber: getPitchInMode(
+        startPitch + Math.floor(i/4),
+        getDegreeForArpeggio(mode.length, i % 4),
+        mode
+      ),
       velocity: getLeadBeatVelocity(i % 4)
     })
   ).flat();
@@ -164,11 +168,15 @@ function arpeggioUp({ root, mode }) {
 
 function arpeggioDown({ root, mode }) {
   const startPitch = root + probable.pick(mode);
-  return range(16, -1, -1).map(i => 
+  return range(0, -16, -1).map(i => 
     notePair({
       creator: 'arpeggioDown',
       deltaTime: 32,
-      noteNumber: getPitchInMode(startPitch, i * 2, mode),
+      noteNumber: getPitchInMode(
+        startPitch + Math.ceil(i / 4),
+        getDegreeForArpeggio(mode.length, i % 4),
+        mode
+      ),
       velocity: getLeadBeatVelocity(4 - (i % 4))
     })
   ).flat();
@@ -186,9 +194,10 @@ function randomNotes({ root, mode }) {
   ).flat();
 }
 
-function notePair({ deltaTime = 64, channel = 0, noteNumber, velocity = 64 }) {
+function notePair({ deltaTime = 64, channel = 0, noteNumber, velocity = 64, creator }) {
   return [
     {
+      creator,
       deltaTime,
       channel,
       type: 'noteOn',
@@ -205,13 +214,25 @@ function notePair({ deltaTime = 64, channel = 0, noteNumber, velocity = 64 }) {
   ];
 }
 
+// TODO: 7 degrees in modes, not 8.
 function getPitchInMode(root, degree, mode) {
+  if (degree < 0) {
+    debugger;
+  }
+  // If the degree is negative, convert it to a
+  // negative octave and a positive degree.
+  // For example, a degree of -15 should become
+  // octave -2, degree 1 if the mode has 8 degrees.
+  // (Down two octaves, then up one degree.
   const octave = Math.floor(degree / mode.length);
   if (degree < 0) {
-    degree = mode.length + degree;
+    degree = (mode.length + degree % mode.length);
   }
   const offset = degree % mode.length;
   const noteNumber = root + octave * 12 + mode[offset];
+  if (isNaN(noteNumber)) {
+    throw new Error(`Bad note number from root ${root}, degree ${degree}, offset ${offset}, mode ${mode}.`);
+  }
   return noteNumber;
 }
 
@@ -220,3 +241,8 @@ function getLeadBeatVelocity(positionInBeat) {
   return probable.roll(32) + 48 + boost;
 }
 
+function getDegreeForArpeggio(modeLength, arpeggioStep) {
+  const octave = Math.floor(arpeggioStep/3);
+  const offset = (3 + arpeggioStep) % 3;
+  return octave * modeLength + [0, 2, 4][offset];
+}
