@@ -30,7 +30,7 @@ if (!outputPath || !sectionCount || !role) {
 }
 
 if (!seed) { 
-  seed = process.argv.length > 5 ? process.argv[5] : randomId(5);
+  seed = randomId(5);
 }
 
 console.log('Seed:', seed);
