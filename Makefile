@@ -6,4 +6,4 @@ try-rhythm:
     --sections 1 \
     --output out/micromodes-rhythm.mid \
     --role rhythm \
-    --seed hey
+    --seed yo

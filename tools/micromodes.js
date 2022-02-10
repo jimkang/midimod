@@ -2,6 +2,8 @@
 
 /* global process, __dirname, Buffer */
 
+const sixteenthNoteTicks = 240;
+
 var fs = require('fs');
 var path = require('path');
 var { writeMidi } = require('midi-file');
@@ -51,13 +53,12 @@ var infoTrack = [
     'numerator': 4,
     'denominator': 4,
     'metronome': 1,
-    'thirtyseconds': 96
   },
   {
     'deltaTime': 0,
     'meta': true,
     'type': 'setTempo',
-    'microsecondsPerBeat': 1500000
+    'microsecondsPerBeat': 1000000
   },
   {
     'deltaTime': 0,
@@ -105,7 +106,18 @@ var leadBeatPatternTable = probable.createTableFromSizes([
   [8, randomNotes]
 ]);
 
-
+var firmusIntervalChoiceTables = {
+  // Gradus ad Parnassum style.
+  firstNote: probable.createTableFromSizes([
+    [1, 0],
+    [1, 4],
+  ]),
+  lastNote: probable.createTableFromSizes([
+    [2, 0],
+    [1, 4],
+  ]),
+};
+    
 var rhythmTrack = [];
 var leadTrack = [];
 
@@ -137,12 +149,16 @@ function tracksForSection(sectionBarCount) {
   const sectionRoot = progressionOctave + probable.roll(12);
   var measureRoots = range(sectionBarCount)
     .map(
-      () => probable.shuffle(progressionMode.intervals)
-        .map(n => sectionRoot + progressionOctave + n))
+      (i) => getIntervalMelodic(progressionMode, i, sectionBarCount)
+    )
+    .map(n => sectionRoot + progressionOctave + n)
     .flat();
   console.log('measureRoots', measureRoots);
 
   var rhythmSection = measureRoots.map(eventsForRhythmBar).flat();
+  console.log('rhythmSection count:', rhythmSection.length);
+  // Remove the delay from the first event.
+  rhythmSection[0].deltaTime = 0;
   var leadSection = range(measureRoots.length/2).map(eventsForLeadBar).flat();
   return { rhythmSection, leadSection };
 
@@ -172,7 +188,7 @@ function runUp({ root, mode }) {
     notePair({
       creator: 'runUp',
       mode: mode.name,
-      deltaTime: 64,
+      deltaTime: sixteenthNoteTicks,
       noteNumber: getPitchInMode(startPitch, i, mode),
       velocity: getLeadBeatVelocity(i % 4)
     })
@@ -186,7 +202,7 @@ function runDown({ root, mode }) {
     notePair({
       creator: 'runDown',
       mode: mode.name,
-      deltaTime: 64,
+      deltaTime: sixteenthNoteTicks,
       noteNumber: getPitchInMode(startPitch, i, mode),
       velocity: getLeadBeatVelocity(4 - (i % i))
     })
@@ -199,7 +215,7 @@ function arpeggioUp({ root, mode }) {
     notePair({
       creator: 'arpeggioUp',
       mode: mode.name,
-      deltaTime: 64,
+      deltaTime: sixteenthNoteTicks,
       noteNumber: getPitchInMode(
         startPitch + Math.floor(i/4),
         getDegreeForArpeggio(mode.intervals.length, i % 4),
@@ -216,7 +232,7 @@ function arpeggioDown({ root, mode }) {
     notePair({
       creator: 'arpeggioDown',
       mode: mode.name,
-      deltaTime: 64,
+      deltaTime: sixteenthNoteTicks,
       noteNumber: getPitchInMode(
         startPitch + Math.ceil(i / 4),
         getDegreeForArpeggio(mode.intervals.length, i % 4),
@@ -232,14 +248,14 @@ function randomNotes({ root, mode }) {
     notePair({
       creator: 'randomNotes',
       mode: mode.name,
-      deltaTime: 64,
+      deltaTime: sixteenthNoteTicks,
       noteNumber: getPitchInMode(root, probable.roll(mode.intervals.length), mode),
       velocity: probable.roll(32) + 48 + (i === 0 ? 32 : 0),
     })
   ).flat();
 }
 
-function notePair({ deltaTime = 64, channel = 0, noteNumber, velocity = 64, creator, mode }) {
+function notePair({ deltaTime = sixteenthNoteTicks, channel = 0, noteNumber, velocity = 64, creator, mode }) {
   return [
     {
       creator,
@@ -288,4 +304,14 @@ function getDegreeForArpeggio(modeLength, arpeggioStep) {
   const octave = Math.floor(arpeggioStep/3);
   const offset = (3 + arpeggioStep) % 3;
   return octave * modeLength + [0, 2, 4][offset];
+}
+
+function getIntervalMelodic(mode, noteNumber, noteTotal) {
+  if (noteNumber === 0) {
+    return mode.intervals[firmusIntervalChoiceTables.firstNote.roll()];
+  }
+  if (noteNumber === noteTotal - 1) {
+    return mode.intervals[firmusIntervalChoiceTables.lastNote.roll()];
+  }
+  return probable.pick(mode.intervals);
 }
