@@ -67,20 +67,34 @@ var infoTrack = [
 ];
 
 var modes = [
-  // Ionian
-  [0, 2, 4, 5, 7, 9, 11, 12],
-  // Dorian
-  [0, 2, 3, 5, 7, 9, 10, 12],
-  // Phrygian
-  [0, 1, 3, 5, 6, 8, 10, 12],
-  // Lydian
-  [0, 2, 4, 6, 7, 9, 11, 12],
-  // Mixolydian
-  [0, 2, 4, 5, 7, 9, 10, 12],
-  // Aeolian
-  [0, 2, 3, 5, 7, 8, 10, 12],
-  // Locrian
-  [0, 1, 3, 5, 6, 8, 10, 12]
+  {
+    name: 'Ionian',
+    intervals: [0, 2, 4, 5, 7, 9, 11, 12],
+  },
+  {
+    name: 'Dorian',
+    intervals: [0, 2, 3, 5, 7, 9, 10, 12],
+  },
+  {
+    name: 'Phrygian',
+    intervals: [0, 1, 3, 5, 6, 8, 10, 12],
+  },
+  {
+    name: 'Lydian',
+    intervals: [0, 2, 4, 6, 7, 9, 11, 12],
+  },
+  {
+    name: 'Mixolydian',
+    intervals: [0, 2, 4, 5, 7, 9, 10, 12],
+  },
+  {
+    name: 'Aeolian',
+    intervals: [0, 2, 3, 5, 7, 8, 10, 12],
+  },
+  {
+    name: 'Locrian',
+    intervals: [0, 1, 3, 5, 6, 8, 10, 12]
+  },
 ];
 
 var leadBeatPatternTable = probable.createTableFromSizes([
@@ -123,7 +137,7 @@ function tracksForSection(sectionBarCount) {
   const sectionRoot = progressionOctave + probable.roll(12);
   var measureRoots = range(sectionBarCount)
     .map(
-      () => probable.shuffle(progressionMode)
+      () => probable.shuffle(progressionMode.intervals)
         .map(n => sectionRoot + progressionOctave + n))
     .flat();
   console.log('measureRoots', measureRoots);
@@ -153,10 +167,11 @@ function tracksForSection(sectionBarCount) {
 }
 
 function runUp({ root, mode }) {
-  const startPitch = root + probable.pick(mode);
+  const startPitch = root + probable.pick(mode.intervals);
   return range(16).map(i => 
     notePair({
       creator: 'runUp',
+      mode: mode.name,
       deltaTime: 64,
       noteNumber: getPitchInMode(startPitch, i, mode),
       velocity: getLeadBeatVelocity(i % 4)
@@ -166,10 +181,11 @@ function runUp({ root, mode }) {
 
 // Code duplication crime
 function runDown({ root, mode }) {
-  const startPitch = root + probable.pick(mode);
+  const startPitch = root + probable.pick(mode.intervals);
   return range(0, -16, -1).map(i => 
     notePair({
       creator: 'runDown',
+      mode: mode.name,
       deltaTime: 64,
       noteNumber: getPitchInMode(startPitch, i, mode),
       velocity: getLeadBeatVelocity(4 - (i % i))
@@ -178,14 +194,15 @@ function runDown({ root, mode }) {
 }
 
 function arpeggioUp({ root, mode }) {
-  const startPitch = root + probable.pick(mode);
+  const startPitch = root + probable.pick(mode.intervals);
   return range(16).map(i => 
     notePair({
       creator: 'arpeggioUp',
+      mode: mode.name,
       deltaTime: 64,
       noteNumber: getPitchInMode(
         startPitch + Math.floor(i/4),
-        getDegreeForArpeggio(mode.length, i % 4),
+        getDegreeForArpeggio(mode.intervals.length, i % 4),
         mode
       ),
       velocity: getLeadBeatVelocity(i % 4)
@@ -194,14 +211,15 @@ function arpeggioUp({ root, mode }) {
 }
 
 function arpeggioDown({ root, mode }) {
-  const startPitch = root + probable.pick(mode);
+  const startPitch = root + probable.pick(mode.intervals);
   return range(0, -16, -1).map(i => 
     notePair({
       creator: 'arpeggioDown',
+      mode: mode.name,
       deltaTime: 64,
       noteNumber: getPitchInMode(
         startPitch + Math.ceil(i / 4),
-        getDegreeForArpeggio(mode.length, i % 4),
+        getDegreeForArpeggio(mode.intervals.length, i % 4),
         mode
       ),
       velocity: getLeadBeatVelocity(4 - (i % 4))
@@ -213,17 +231,19 @@ function randomNotes({ root, mode }) {
   return range(16).map(i => 
     notePair({
       creator: 'randomNotes',
+      mode: mode.name,
       deltaTime: 64,
-      noteNumber: getPitchInMode(root, probable.roll(mode.length), mode),
+      noteNumber: getPitchInMode(root, probable.roll(mode.intervals.length), mode),
       velocity: probable.roll(32) + 48 + (i === 0 ? 32 : 0),
     })
   ).flat();
 }
 
-function notePair({ deltaTime = 64, channel = 0, noteNumber, velocity = 64, creator }) {
+function notePair({ deltaTime = 64, channel = 0, noteNumber, velocity = 64, creator, mode }) {
   return [
     {
       creator,
+      mode,
       deltaTime,
       channel,
       type: 'noteOn',
@@ -247,12 +267,12 @@ function getPitchInMode(root, degree, mode) {
   // For example, a degree of -15 should become
   // octave -2, degree 1 if the mode has 8 degrees.
   // (Down two octaves, then up one degree.
-  const octave = Math.floor(degree / mode.length);
+  const octave = Math.floor(degree / mode.intervals.length);
   if (degree < 0) {
-    degree = (mode.length + degree % mode.length);
+    degree = (mode.intervals.length + degree % mode.intervals.length);
   }
-  const offset = degree % mode.length;
-  const noteNumber = root + octave * 12 + mode[offset];
+  const offset = degree % mode.intervals.length;
+  const noteNumber = root + octave * 12 + mode.intervals[offset];
   if (isNaN(noteNumber)) {
     throw new Error(`Bad note number from root ${root}, degree ${degree}, offset ${offset}, mode ${mode}.`);
   }
