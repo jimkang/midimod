@@ -9,18 +9,29 @@ var seedrandom = require('seedrandom');
 var randomId = require('@jimkang/randomid')();
 var Probable = require('probable').createProbable;
 var { range } = require('d3-array');
+var minimist = require('minimist');
 
-if (process.argv.length < 5) {
+var {
+  sections: sectionCount,
+  output: outputPath,
+  role,
+  seed
+} = minimist(process.argv.slice(2));
+
+if (!outputPath || !sectionCount || !role) {
   console.error(
-    'Usage: node micromodes <number of sections> <output file> <rhythm or lead> [seed]'
+    `Usage: node micromodes
+      --sections <number of sections>
+      --output <output file path>'
+      --role <rhythm or lead>
+      [--seed seed]`
   );
   process.exit(1);
 }
 
-const sectionCount = +process.argv[2];
-const outputPath = process.argv[3];
-const role = process.argv[4];
-const seed = process.argv.length > 5 ? process.argv[5] : randomId(5);
+if (!seed) { 
+  seed = process.argv.length > 5 ? process.argv[5] : randomId(5);
+}
 
 console.log('Seed:', seed);
 var random = seedrandom(seed);
