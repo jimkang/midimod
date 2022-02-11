@@ -74,22 +74,22 @@ var infoTrack = [
 ];
 
 var modesTable = probable.createTableFromSizes([
-  [3,
+  [5,
     {
       name: 'Ionian',
       intervals: [0, 2, 4, 5, 7, 9, 11, 12],
     }],
-  [4,
+  [6,
     {
       name: 'Dorian',
       intervals: [0, 2, 3, 5, 7, 9, 10],
     }],
-  [1, {
+  [2, {
     name: 'Phrygian',
     intervals: [0, 1, 3, 5, 6, 8, 10],
   }],
   // It's having a hard time making this work.
-  [0, {
+  [1, {
     name: 'Lydian',
     intervals: [0, 2, 4, 6, 7, 9, 11],
   }],
@@ -97,22 +97,28 @@ var modesTable = probable.createTableFromSizes([
     name: 'Mixolydian',
     intervals: [0, 2, 4, 5, 7, 9, 10],
   }],
-  [3, {
+  [7, {
     name: 'Aeolian',
     intervals: [0, 2, 3, 5, 7, 8, 10],
   }],
-  [1, {
+  [2, {
     name: 'Locrian',
     intervals: [0, 1, 3, 5, 6, 8, 10]
   }],
 ]);
 
 var leadBeatPatternTable = probable.createTableFromSizes([
-  [2, runUp],
-  [2, runDown],
+  [1, runUp],
+  [1, runDown],
   [1, arpeggioUp],
   [1, arpeggioDown],
   [8, randomNotes]
+]);
+
+var phraseLengthTable = probable.createTableFromSizes([
+  [3, 1],
+  [5, 2],
+  [1, 4]
 ]);
 
 var firmusModeDegreeChoiceTables = {
@@ -163,7 +169,7 @@ for (let sectionIndex = 0; sectionIndex < sectionCount; ++sectionIndex) {
       
   let { rhythmSection, leadSection } = tracksForSection({
     sectionBarCount: barsPerSection, 
-    allowLooseLeadMode: sectionIndex/sectionCount > 0.6 && sectionIndex/sectionCount < 0.8,
+    allowLooseLeadMode: false, //sectionIndex/sectionCount > 0.6 && sectionIndex/sectionCount < 0.8,
     sectionRoot,
     sectionMode
   });
@@ -228,16 +234,34 @@ function tracksForSection({ sectionBarCount, sectionRoot, allowLooseLeadMode = f
   }
 
   function eventsForLeadBar(useLooseLeadMode, degreeRoot) {
-    const octave = probable.roll(2) + 2;
+    const octave = 0;
     const barMode = useLooseLeadMode ? modesTable.roll() : sectionMode;
     const niceRoot = octave * 12 + sectionRoot + rootsOffset;
-    const root = useLooseLeadMode ? getPitchInMode(niceRoot, degreeRoot, barMode) : niceRoot;
-    var events = range(2).map(() => leadBeatPatternTable.roll()({
-      root, 
-      mode: barMode,
-      startDegree: degreeRoot,
-      beats: 2
-    })).flat();
+    //const root = useLooseLeadMode ? getPitchInMode(niceRoot, degreeRoot, barMode) : niceRoot;
+    const root = niceRoot;
+    var events = [];
+    for (let beatsFilled = 0; beatsFilled < 4; ) {
+      let phraseLength = phraseLengthTable.roll();
+      const beatsRemaining = 4 - beatsFilled;
+      if (phraseLength > beatsRemaining) {
+        phraseLength = beatsRemaining;
+      } 
+      let eventsForPhrase = leadBeatPatternTable.roll()({
+        root, 
+        mode: barMode,
+        startDegree: degreeRoot,
+        beats: phraseLength
+      });
+
+      events = events.concat(eventsForPhrase);
+      beatsFilled += phraseLength;
+      if (phraseLength <= 4 - beatsFilled && probable.roll(3) === 0) {
+        // Repeat the phrase.
+        events = events.concat(eventsForPhrase);
+        beatsFilled += phraseLength;
+      }
+    }
+
     var badEvent = events.find(e => isNaN(e.noteNumber)); 
     if (badEvent) {
       throw new Error(`Bad event: ${JSON.stringify(badEvent, null, 2)}`);

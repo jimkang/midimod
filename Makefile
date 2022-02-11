@@ -1,4 +1,4 @@
-SEED = yngwie
+SEED = sweep
 SECTIONS = 8
 
 pushall:
