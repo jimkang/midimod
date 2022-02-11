@@ -1,18 +1,19 @@
-SEED = goodsolo
+SEED = greatestsolo
+SECTIONS = 1
 
 pushall:
 	git push origin main
 
 try-rhythm:
 	node tools/micromodes.js \
-    --sections 4 \
+    --sections $(SECTIONS) \
     --output out/micromodes-rhythm.mid \
     --role rhythm \
     --seed $(SEED)
 
 try-lead:
 	node tools/micromodes.js \
-    --sections 4 \
+    --sections $(SECTIONS) \
     --output out/micromodes-lead.mid \
     --role lead \
     --seed $(SEED)

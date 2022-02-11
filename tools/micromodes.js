@@ -16,6 +16,7 @@ var curry = require('lodash.curry');
 
 var {
   sections: sectionCount,
+  barsPerSection,
   output: outputPath,
   role,
   seed
@@ -25,6 +26,7 @@ if (!outputPath || !sectionCount || !role) {
   console.error(
     `Usage: node micromodes
       --sections <number of sections>
+      [--barsPerSection <bars in each section>]
       --output <output file path>'
       --role <rhythm or lead>
       [--seed seed]`
@@ -34,6 +36,9 @@ if (!outputPath || !sectionCount || !role) {
 
 if (!seed) { 
   seed = randomId(5);
+}
+if (!barsPerSection) {
+  barsPerSection = 4;
 }
 
 console.log('Seed:', seed);
@@ -74,44 +79,43 @@ var modesTable = probable.createTableFromSizes([
       name: 'Ionian',
       intervals: [0, 2, 4, 5, 7, 9, 11, 12],
     }],
-  [3,
+  [4,
     {
       name: 'Dorian',
-      intervals: [0, 2, 3, 5, 7, 9, 10, 12],
+      intervals: [0, 2, 3, 5, 7, 9, 10],
     }],
   [1, {
     name: 'Phrygian',
-    intervals: [0, 1, 3, 5, 6, 8, 10, 12],
+    intervals: [0, 1, 3, 5, 6, 8, 10],
   }],
   // It's having a hard time making this work.
   [0, {
     name: 'Lydian',
-    intervals: [0, 2, 4, 6, 7, 9, 11, 12],
+    intervals: [0, 2, 4, 6, 7, 9, 11],
   }],
   [2, {
     name: 'Mixolydian',
-    intervals: [0, 2, 4, 5, 7, 9, 10, 12],
+    intervals: [0, 2, 4, 5, 7, 9, 10],
   }],
   [3, {
     name: 'Aeolian',
-    intervals: [0, 2, 3, 5, 7, 8, 10, 12],
+    intervals: [0, 2, 3, 5, 7, 8, 10],
   }],
   [1, {
     name: 'Locrian',
-    intervals: [0, 1, 3, 5, 6, 8, 10, 12]
+    intervals: [0, 1, 3, 5, 6, 8, 10]
   }],
 ]);
 
 var leadBeatPatternTable = probable.createTableFromSizes([
   [2, runUp],
-  [2, runDown],
+  [2000, runDown],
   [1, arpeggioUp],
   [1, arpeggioDown],
   [8, randomNotes]
 ]);
 
-var firmusIntervalChoiceTables = {
-  // Gradus ad Parnassum style.
+var firmusModeDegreeChoiceTables = {
   firstNote: probable.createTableFromSizes([
     [1, 0],
     [1, 4],
@@ -142,12 +146,25 @@ var rootsMode = modesTable.roll();
 console.log('riffs', riffs);
 console.log('rootsMode', rootsMode);
 
+var currentSectionMode;
+
 for (let sectionIndex = 0; sectionIndex < sectionCount; ++sectionIndex) {
+  var sectionMode;
+  if (sectionIndex > 0 && sectionIndex === sectionCount - 1) {
+    sectionMode = rootsMode;
+  } else {
+    do {
+      sectionMode = modesTable.roll();
+    }
+    while (currentSectionMode && sectionMode.name === currentSectionMode.name);
+  }
+  currentSectionMode = sectionMode;
+      
   let { rhythmSection, leadSection } = tracksForSection({
-    sectionBarCount: 4, 
-    sectionRoot: pieceRoot + probable.pick(rootsMode.intervals) + 24, 
-    allowRandomLeadMode: sectionIndex > 0 && sectionIndex === sectionCount - 1,
-    sectionMode: sectionIndex > 0 && sectionIndex === sectionCount - 1 ? rootsMode : modesTable.roll()
+    sectionBarCount: barsPerSection, 
+    sectionRoot: pieceRoot + probable.pick(rootsMode.intervals) + 12, 
+    allowLooseLeadMode: sectionIndex/sectionCount > 0.6 && sectionIndex/sectionCount < 0.8,
+    sectionMode
   });
   rhythmTrack = rhythmTrack.concat(rhythmSection);
   leadTrack = leadTrack.concat(leadSection);
@@ -181,36 +198,40 @@ var outputMidi = writeMidi(midiObject);
 var outputBuffer = Buffer.from(outputMidi);
 fs.writeFileSync(path.join(__dirname, '..', outputPath), outputBuffer);
 
-function tracksForSection({ sectionBarCount, sectionRoot, allowRandomLeadMode = false, sectionMode }) {
+function tracksForSection({ sectionBarCount, sectionRoot, allowLooseLeadMode = false, sectionMode }) {
   console.log('sectionMode', sectionMode.name, 'sectionRoot', sectionRoot);
 
-  const progressionOctave = probable.roll(2) + 1;
-  var measureRoots = range(sectionBarCount)
-    .map(
-      (i) => getIntervalMelodic(sectionMode, i, sectionBarCount)
-    )
-    .map(n => sectionRoot + progressionOctave * 12 + n)
-    .flat();
-  console.log('measureRoots', measureRoots);
+  const progressionOctave = probable.roll(2);
+  const rootsOffset = sectionRoot + progressionOctave * 12;
 
-  var rhythmSection = measureRoots.map(eventsForRhythmBar).flat();
-  var leadSection = measureRoots.map(curry(eventsForLeadBar)(allowRandomLeadMode)).flat();
+  var measureModeDegrees = range(sectionBarCount).map(i => getModeDegreeMelodic(i, sectionMode.intervals.length));
+  console.log('measureModeDegrees', measureModeDegrees);
+
+  var rhythmSection = measureModeDegrees.map(eventsForRhythmBar).flat();
+  var leadSection = measureModeDegrees.map(curry(eventsForLeadBar)(allowLooseLeadMode)).flat();
   return { rhythmSection, leadSection };
 
-  function eventsForRhythmBar(barRoot, measureIndex) {
-    var riff = riffs[Math.floor(measureIndex / sectionCount)];
+  // The tonal center is going to be at degreeRoot + the offset, but the root
+  // of the mode is still sectionRoot.
+  function eventsForRhythmBar(degreeRoot, measureIndex) {
+    var riff = riffs[Math.floor(measureIndex / barsPerSection)];
     return range(8).map(eventIndex => notePair({
       velocity: [2, 6].includes(eventIndex) ? 80 : 64,
-      noteNumber: getPitchInMode(barRoot, riff[eventIndex], sectionMode),
+      noteNumber: getPitchInMode(sectionRoot + rootsOffset, degreeRoot + riff[eventIndex], sectionMode),
       length: sixteenthNoteTicks * 2
     })).flat();
   }
 
-  function eventsForLeadBar(useRandomMode, barRoot) {
+  function eventsForLeadBar(useLooseLeadMode, degreeRoot) {
     const octave = probable.roll(2);
-    const root = octave * 12 + barRoot;
-    const barMode = useRandomMode ? modesTable.roll() : sectionMode;
-    var events = range(4).map(() => leadBeatPatternTable.roll()({ root, mode: barMode, beats: 1 })).flat();
+    const barMode = useLooseLeadMode ? modesTable.roll() : sectionMode;
+    const root = octave * 12 + sectionRoot + rootsOffset;//  barRoot;// (useLooseLeadMode ? barRoot : sectionRoot);
+    var events = range(2).map(() => leadBeatPatternTable.roll()({
+      root, 
+      mode: barMode,
+      startDegree: degreeRoot,
+      beats: 2
+    })).flat();
     var badEvent = events.find(e => isNaN(e.noteNumber)); 
     if (badEvent) {
       throw new Error(`Bad event: ${JSON.stringify(badEvent, null, 2)}`);
@@ -219,43 +240,43 @@ function tracksForSection({ sectionBarCount, sectionRoot, allowRandomLeadMode = 
   }
 }
 
-function runUp({ root, mode, beats }) {
-  const startPitch = root + probable.pick(mode.intervals);
+function runUp({ root, startDegree, mode, beats }) {
   return range(beats * 4).map(i => 
     notePair({
       creator: 'runUp',
       mode: mode.name,
       length: sixteenthNoteTicks,
-      noteNumber: getPitchInMode(startPitch, i, mode),
+      noteNumber: getPitchInMode(root, startDegree + i, mode),
       velocity: getLeadBeatVelocity(i % 4)
     })
   ).flat();
 }
 
-// Code duplication crime
-function runDown({ root, mode, beats }) {
-  const startPitch = root + probable.pick(mode.intervals);
-  return range(0, -beats * 4, -1).map(i => 
-    notePair({
+function runDown({ root, startDegree, mode, beats }) {
+  return range(0, -beats * 4, -1).map(getNotePair).flat();
+
+  function getNotePair(i) {
+    const noteNumber = getPitchInMode(root, startDegree + i, mode);
+    console.log('runDown', root, startDegree, i, noteNumber);
+    return notePair({
       creator: 'runDown',
       mode: mode.name,
       length: sixteenthNoteTicks,
-      noteNumber: getPitchInMode(startPitch, i, mode),
+      noteNumber,
       velocity: getLeadBeatVelocity(4 - (i % i))
-    })
-  ).flat();
+    });
+  } 
 }
 
-function arpeggioUp({ root, mode, beats }) {
-  const startPitch = root + probable.pick(mode.intervals);
+function arpeggioUp({ root, startDegree, mode, beats }) {
   return range(beats * 4).map(i => 
     notePair({
       creator: 'arpeggioUp',
       mode: mode.name,
       length: sixteenthNoteTicks,
       noteNumber: getPitchInMode(
-        startPitch + Math.floor(i/4),
-        getDegreeForArpeggio(mode.intervals.length, i % 4),
+        root,
+        getDegreeForArpeggio(mode.intervals.length, startDegree + i % 4 + Math.ceil(i / 4)),
         mode
       ),
       velocity: getLeadBeatVelocity(i % 4)
@@ -263,16 +284,15 @@ function arpeggioUp({ root, mode, beats }) {
   ).flat();
 }
 
-function arpeggioDown({ root, mode, beats }) {
-  const startPitch = root + probable.pick(mode.intervals);
+function arpeggioDown({ root, startDegree, mode, beats }) {
   return range(0, -beats * 4, -1).map(i => 
     notePair({
       creator: 'arpeggioDown',
       mode: mode.name,
       length: sixteenthNoteTicks,
       noteNumber: getPitchInMode(
-        startPitch + Math.ceil(i / 4),
-        getDegreeForArpeggio(mode.intervals.length, i % 4),
+        root,
+        getDegreeForArpeggio(mode.intervals.length, startDegree + i % 4 + Math.ceil(i / 4)),
         mode
       ),
       velocity: getLeadBeatVelocity(4 - (i % 4))
@@ -313,7 +333,6 @@ function notePair({ length = sixteenthNoteTicks, channel = 0, noteNumber, veloci
   ];
 }
 
-// TODO: 7 degrees in modes, not 8.
 function getPitchInMode(root, degree, mode) {
   // If the degree is negative, convert it to a
   // negative octave and a positive degree.
@@ -343,12 +362,12 @@ function getDegreeForArpeggio(modeLength, arpeggioStep) {
   return octave * modeLength + [0, 2, 4][offset];
 }
 
-function getIntervalMelodic(mode, noteNumber, noteTotal) {
+function getModeDegreeMelodic(noteNumber, noteTotal) {
   if (noteNumber === 0) {
-    return mode.intervals[firmusIntervalChoiceTables.firstNote.roll()];
+    return firmusModeDegreeChoiceTables.firstNote.roll();
   }
   if (noteNumber === noteTotal - 1) {
-    return mode.intervals[firmusIntervalChoiceTables.lastNote.roll()];
+    return firmusModeDegreeChoiceTables.lastNote.roll();
   }
-  return probable.pick(mode.intervals);
+  return probable.roll(8);
 }
