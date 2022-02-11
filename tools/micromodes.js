@@ -179,13 +179,13 @@ for (let sectionIndex = 0; sectionIndex < sectionCount; ++sectionIndex) {
     const endBaseNote = sectionRoot + 24;
     rhythmSection = rhythmSection.concat(notePair(
       {
-        length: sixteenthNoteTicks * 4,
+        length: sixteenthNoteTicks * 16,
         noteNumber: endBaseNote
       }
     ));
     leadSection = leadSection.concat(notePair(
       {
-        length: sixteenthNoteTicks * 4,
+        length: sixteenthNoteTicks * 16,
         noteNumber: endBaseNote + 7
       }
     ));
