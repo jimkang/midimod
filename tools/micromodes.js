@@ -142,21 +142,20 @@ var outputBuffer = Buffer.from(outputMidi);
 fs.writeFileSync(path.join(__dirname, '..', outputPath), outputBuffer);
 
 function tracksForSection(sectionBarCount) {
-  var progressionMode = probable.pick(modes);
-  console.log('progressionMode', progressionMode);
+  var sectionMode = probable.pick(modes);
+  console.log('sectionMode', sectionMode);
 
   const progressionOctave = probable.roll(3) + 24;
   const sectionRoot = progressionOctave + probable.roll(12);
   var measureRoots = range(sectionBarCount)
     .map(
-      (i) => getIntervalMelodic(progressionMode, i, sectionBarCount)
+      (i) => getIntervalMelodic(sectionMode, i, sectionBarCount)
     )
     .map(n => sectionRoot + progressionOctave + n)
     .flat();
   console.log('measureRoots', measureRoots);
 
   var rhythmSection = measureRoots.map(eventsForRhythmBar).flat();
-  console.log('rhythmSection count:', rhythmSection.length);
   var leadSection = measureRoots.map(eventsForLeadBar).flat();
   return { rhythmSection, leadSection };
 
@@ -170,8 +169,8 @@ function tracksForSection(sectionBarCount) {
   function eventsForLeadBar(barRoot) {
     const octave = 1 + probable.roll(4);
     const root = octave * 12 + barRoot;
-    const barMode = probable.pick(modes);
-    var events = range(4).map(() => leadBeatPatternTable.roll()({ root, mode: barMode, beats: 1 })).flat();
+    //const barMode = probable.pick(modes);
+    var events = range(4).map(() => leadBeatPatternTable.roll()({ root, mode: sectionMode, beats: 1 })).flat();
     var badEvent = events.find(e => isNaN(e.noteNumber)); 
     if (badEvent) {
       throw new Error(`Bad event: ${JSON.stringify(badEvent, null, 2)}`);
