@@ -12,6 +12,7 @@ var randomId = require('@jimkang/randomid')();
 var Probable = require('probable').createProbable;
 var { range } = require('d3-array');
 var minimist = require('minimist');
+var curry = require('lodash.curry');
 
 var {
   sections: sectionCount,
@@ -120,12 +121,33 @@ var firmusIntervalChoiceTables = {
     
 var rhythmTrack = [];
 var leadTrack = [];
+var pieceRoot = probable.roll(12);
+var rootsMode = probable.pick(modes);
+console.log('rootsMode', rootsMode);
 
 for (let sectionIndex = 0; sectionIndex < sectionCount; ++sectionIndex) {
-  let { rhythmSection, leadSection } = tracksForSection(4);
+  let { rhythmSection, leadSection } = tracksForSection({
+    sectionBarCount: 4, 
+    sectionRoot: pieceRoot + probable.pick(rootsMode.intervals) + 24, 
+    allowRandomLeadMode: sectionIndex > 0 && sectionIndex === sectionCount - 1
+  });
   rhythmTrack = rhythmTrack.concat(rhythmSection);
   leadTrack = leadTrack.concat(leadSection);
 }
+
+// Add final note.
+rhythmTrack = rhythmTrack.concat(notePair(
+  {
+    length: sixteenthNoteTicks * 4,
+    noteNumber: pieceRoot + 36 + probable.rollDie(2)
+  }
+));
+leadTrack = leadTrack.concat(notePair(
+  {
+    length: sixteenthNoteTicks * 4,
+    noteNumber: pieceRoot + 36 * probable.rollDie(3) + getIntervalMelodic(rootsMode, 1, 1)
+  }
+));
 
 // TODO: Write out two files.
 var midiObject = {
@@ -141,22 +163,21 @@ var outputMidi = writeMidi(midiObject);
 var outputBuffer = Buffer.from(outputMidi);
 fs.writeFileSync(path.join(__dirname, '..', outputPath), outputBuffer);
 
-function tracksForSection(sectionBarCount) {
+function tracksForSection({ sectionBarCount, sectionRoot, allowRandomLeadMode = false }) {
   var sectionMode = probable.pick(modes);
-  console.log('sectionMode', sectionMode);
+  console.log('sectionMode', sectionMode, 'sectionRoot', sectionRoot);
 
-  const progressionOctave = probable.roll(3) + 24;
-  const sectionRoot = progressionOctave + probable.roll(12);
+  const progressionOctave = probable.roll(2) + 1;
   var measureRoots = range(sectionBarCount)
     .map(
       (i) => getIntervalMelodic(sectionMode, i, sectionBarCount)
     )
-    .map(n => sectionRoot + progressionOctave + n)
+    .map(n => sectionRoot + progressionOctave * 12 + n)
     .flat();
   console.log('measureRoots', measureRoots);
 
   var rhythmSection = measureRoots.map(eventsForRhythmBar).flat();
-  var leadSection = measureRoots.map(eventsForLeadBar).flat();
+  var leadSection = measureRoots.map(curry(eventsForLeadBar)(allowRandomLeadMode)).flat();
   return { rhythmSection, leadSection };
 
   function eventsForRhythmBar(barRoot) {
@@ -166,11 +187,11 @@ function tracksForSection(sectionBarCount) {
       );
   }
 
-  function eventsForLeadBar(barRoot) {
-    const octave = 1 + probable.roll(4);
+  function eventsForLeadBar(useRandomMode, barRoot) {
+    const octave = 1 + probable.roll(3);
     const root = octave * 12 + barRoot;
-    //const barMode = probable.pick(modes);
-    var events = range(4).map(() => leadBeatPatternTable.roll()({ root, mode: sectionMode, beats: 1 })).flat();
+    const barMode = useRandomMode ? probable.pick(modes) : sectionMode;
+    var events = range(4).map(() => leadBeatPatternTable.roll()({ root, mode: barMode, beats: 1 })).flat();
     var badEvent = events.find(e => isNaN(e.noteNumber)); 
     if (badEvent) {
       throw new Error(`Bad event: ${JSON.stringify(badEvent, null, 2)}`);
