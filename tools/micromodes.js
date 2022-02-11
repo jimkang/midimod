@@ -228,9 +228,9 @@ function tracksForSection({ sectionBarCount, sectionRoot, allowLooseLeadMode = f
   }
 
   function eventsForLeadBar(useLooseLeadMode, degreeRoot) {
-    const octave = probable.roll(2);
+    const octave = probable.roll(2) + 2;
     const barMode = useLooseLeadMode ? modesTable.roll() : sectionMode;
-    const root = octave * 12 + sectionRoot + rootsOffset;//  barRoot;// (useLooseLeadMode ? barRoot : sectionRoot);
+    const root = useLooseLeadMode ? getPitchInMode(sectionRoot, degreeRoot, barMode) : octave * 12 + sectionRoot + rootsOffset;
     var events = range(2).map(() => leadBeatPatternTable.roll()({
       root, 
       mode: barMode,
