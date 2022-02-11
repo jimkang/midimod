@@ -168,7 +168,7 @@ function tracksForSection(sectionBarCount) {
   }
 
   function eventsForLeadBar(barRoot) {
-    const octave = 2 + probable.roll(4);
+    const octave = 1 + probable.roll(4);
     const root = octave * 12 + barRoot;
     const barMode = probable.pick(modes);
     var events = range(4).map(() => leadBeatPatternTable.roll()({ root, mode: barMode, beats: 1 })).flat();
