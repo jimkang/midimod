@@ -157,8 +157,6 @@ function tracksForSection(sectionBarCount) {
 
   var rhythmSection = measureRoots.map(eventsForRhythmBar).flat();
   console.log('rhythmSection count:', rhythmSection.length);
-  // Remove the delay from the first event.
-  rhythmSection[0].deltaTime = 0;
   var leadSection = range(measureRoots.length/2).map(eventsForLeadBar).flat();
   return { rhythmSection, leadSection };
 
@@ -188,7 +186,7 @@ function runUp({ root, mode }) {
     notePair({
       creator: 'runUp',
       mode: mode.name,
-      deltaTime: sixteenthNoteTicks,
+      length: sixteenthNoteTicks,
       noteNumber: getPitchInMode(startPitch, i, mode),
       velocity: getLeadBeatVelocity(i % 4)
     })
@@ -202,7 +200,7 @@ function runDown({ root, mode }) {
     notePair({
       creator: 'runDown',
       mode: mode.name,
-      deltaTime: sixteenthNoteTicks,
+      length: sixteenthNoteTicks,
       noteNumber: getPitchInMode(startPitch, i, mode),
       velocity: getLeadBeatVelocity(4 - (i % i))
     })
@@ -215,7 +213,7 @@ function arpeggioUp({ root, mode }) {
     notePair({
       creator: 'arpeggioUp',
       mode: mode.name,
-      deltaTime: sixteenthNoteTicks,
+      length: sixteenthNoteTicks,
       noteNumber: getPitchInMode(
         startPitch + Math.floor(i/4),
         getDegreeForArpeggio(mode.intervals.length, i % 4),
@@ -232,7 +230,7 @@ function arpeggioDown({ root, mode }) {
     notePair({
       creator: 'arpeggioDown',
       mode: mode.name,
-      deltaTime: sixteenthNoteTicks,
+      length: sixteenthNoteTicks,
       noteNumber: getPitchInMode(
         startPitch + Math.ceil(i / 4),
         getDegreeForArpeggio(mode.intervals.length, i % 4),
@@ -248,26 +246,26 @@ function randomNotes({ root, mode }) {
     notePair({
       creator: 'randomNotes',
       mode: mode.name,
-      deltaTime: sixteenthNoteTicks,
+      length: sixteenthNoteTicks,
       noteNumber: getPitchInMode(root, probable.roll(mode.intervals.length), mode),
       velocity: probable.roll(32) + 48 + (i === 0 ? 32 : 0),
     })
   ).flat();
 }
 
-function notePair({ deltaTime = sixteenthNoteTicks, channel = 0, noteNumber, velocity = 64, creator, mode }) {
+function notePair({ length = sixteenthNoteTicks, channel = 0, noteNumber, velocity = 64, creator, mode }) {
   return [
     {
       creator,
       mode,
-      deltaTime,
+      deltaTime: 0,
       channel,
       type: 'noteOn',
       noteNumber,
       velocity
     },
     {
-      deltaTime: deltaTime/2,
+      deltaTime: length,
       channel,
       type: 'noteOff',
       noteNumber,
