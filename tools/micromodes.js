@@ -109,9 +109,9 @@ var modesTable = probable.createTableFromSizes([
 
 var leadBeatPatternTable = probable.createTableFromSizes([
   [2, runUp],
-  [2000, runDown],
+  [2, runDown],
   [1, arpeggioUp],
-  [1, arpeggioDown],
+  [1000, arpeggioDown],
   [8, randomNotes]
 ]);
 
@@ -257,7 +257,7 @@ function runDown({ root, startDegree, mode, beats }) {
 
   function getNotePair(i) {
     const noteNumber = getPitchInMode(root, startDegree + i, mode);
-    console.log('runDown', root, startDegree, i, noteNumber);
+    //console.log('runDown', root, startDegree, i, noteNumber);
     return notePair({
       creator: 'runDown',
       mode: mode.name,
@@ -276,7 +276,12 @@ function arpeggioUp({ root, startDegree, mode, beats }) {
       length: sixteenthNoteTicks,
       noteNumber: getPitchInMode(
         root,
-        getDegreeForArpeggio(mode.intervals.length, startDegree + i % 4 + Math.ceil(i / 4)),
+        getDegreeForArpeggio({
+          modeLength: mode.intervals.length,
+          startDegree,
+          // arpeggioStep will go 0 1 2 3 1 2 3 4...
+          arpeggioStep: i % 4 + Math.floor(i/4)
+        }),
         mode
       ),
       velocity: getLeadBeatVelocity(i % 4)
@@ -292,7 +297,12 @@ function arpeggioDown({ root, startDegree, mode, beats }) {
       length: sixteenthNoteTicks,
       noteNumber: getPitchInMode(
         root,
-        getDegreeForArpeggio(mode.intervals.length, startDegree + i % 4 + Math.ceil(i / 4)),
+        getDegreeForArpeggio({
+          modeLength: mode.intervals.length,
+          startDegree,
+          // arpeggioStep will go 0 -1 -2 -3 -1 -2 -3 -4...
+          arpeggioStep: i % 4 + Math.ceil(i/4)
+        }),
         mode
       ),
       velocity: getLeadBeatVelocity(4 - (i % 4))
@@ -356,10 +366,14 @@ function getLeadBeatVelocity(positionInBeat) {
   return probable.roll(32) + 48 + boost;
 }
 
-function getDegreeForArpeggio(modeLength, arpeggioStep) {
-  const octave = Math.floor(arpeggioStep/3);
-  const offset = (3 + arpeggioStep) % 3;
-  return octave * modeLength + [0, 2, 4][offset];
+function getDegreeForArpeggio({ modeLength, startDegree, arpeggioStep }) {
+  var octave = Math.floor(arpeggioStep/3);
+  // Subtract from 3 in case of a negative arpeggioStep.
+  var offset = arpeggioStep % 3; 
+  if (offset < 0) {
+    offset = 3 + offset;
+  }
+  return startDegree + octave * modeLength + [0, 2, 4][offset];
 }
 
 function getModeDegreeMelodic(noteNumber, noteTotal) {
