@@ -111,7 +111,7 @@ var leadBeatPatternTable = probable.createTableFromSizes([
   [2, runUp],
   [2, runDown],
   [1, arpeggioUp],
-  [1000, arpeggioDown],
+  [1, arpeggioDown],
   [8, randomNotes]
 ]);
 
@@ -159,30 +159,35 @@ for (let sectionIndex = 0; sectionIndex < sectionCount; ++sectionIndex) {
     while (currentSectionMode && sectionMode.name === currentSectionMode.name);
   }
   currentSectionMode = sectionMode;
+  var sectionRoot = pieceRoot + probable.pick(rootsMode.intervals) + 12;
       
   let { rhythmSection, leadSection } = tracksForSection({
     sectionBarCount: barsPerSection, 
-    sectionRoot: pieceRoot + probable.pick(rootsMode.intervals) + 12, 
     allowLooseLeadMode: sectionIndex/sectionCount > 0.6 && sectionIndex/sectionCount < 0.8,
+    sectionRoot,
     sectionMode
   });
+
+  if (sectionIndex === sectionCount - 1) {
+    // Add final note.
+    const endBaseNote = sectionRoot + 24;
+    rhythmSection = rhythmSection.concat(notePair(
+      {
+        length: sixteenthNoteTicks * 4,
+        noteNumber: endBaseNote
+      }
+    ));
+    leadSection = leadSection.concat(notePair(
+      {
+        length: sixteenthNoteTicks * 4,
+        noteNumber: endBaseNote
+      }
+    ));
+  }
+
   rhythmTrack = rhythmTrack.concat(rhythmSection);
   leadTrack = leadTrack.concat(leadSection);
 }
-
-// Add final note.
-rhythmTrack = rhythmTrack.concat(notePair(
-  {
-    length: sixteenthNoteTicks * 4,
-    noteNumber: pieceRoot + 24 + probable.rollDie(2)
-  }
-));
-leadTrack = leadTrack.concat(notePair(
-  {
-    length: sixteenthNoteTicks * 4,
-    noteNumber: pieceRoot + 24 * probable.rollDie(3) + 7
-  }
-));
 
 // TODO: Write out two files.
 var midiObject = {
