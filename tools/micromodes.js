@@ -157,21 +157,21 @@ function tracksForSection(sectionBarCount) {
 
   var rhythmSection = measureRoots.map(eventsForRhythmBar).flat();
   console.log('rhythmSection count:', rhythmSection.length);
-  var leadSection = range(measureRoots.length/2).map(eventsForLeadBar).flat();
+  var leadSection = measureRoots.map(eventsForLeadBar).flat();
   return { rhythmSection, leadSection };
 
   function eventsForRhythmBar(barRoot) {
-    return notePair({ noteNumber: barRoot, velocity: 80 })
+    return notePair({ noteNumber: barRoot, length: sixteenthNoteTicks * 2, velocity: 80 })
       .concat(
-        range(7).map(() => notePair({ noteNumber: barRoot })).flat()
+        range(7).map(() => notePair({ noteNumber: barRoot, length: sixteenthNoteTicks * 2,})).flat()
       );
   }
 
-  function eventsForLeadBar() {
+  function eventsForLeadBar(barRoot) {
     const octave = 2 + probable.roll(4);
-    const root = octave * 12 + sectionRoot;
+    const root = octave * 12 + barRoot;
     const barMode = probable.pick(modes);
-    var events = leadBeatPatternTable.roll()({ root, mode: barMode });
+    var events = range(4).map(() => leadBeatPatternTable.roll()({ root, mode: barMode, beats: 1 })).flat();
     var badEvent = events.find(e => isNaN(e.noteNumber)); 
     if (badEvent) {
       throw new Error(`Bad event: ${JSON.stringify(badEvent, null, 2)}`);
@@ -180,9 +180,9 @@ function tracksForSection(sectionBarCount) {
   }
 }
 
-function runUp({ root, mode }) {
+function runUp({ root, mode, beats }) {
   const startPitch = root + probable.pick(mode.intervals);
-  return range(16).map(i => 
+  return range(beats * 4).map(i => 
     notePair({
       creator: 'runUp',
       mode: mode.name,
@@ -194,9 +194,9 @@ function runUp({ root, mode }) {
 }
 
 // Code duplication crime
-function runDown({ root, mode }) {
+function runDown({ root, mode, beats }) {
   const startPitch = root + probable.pick(mode.intervals);
-  return range(0, -16, -1).map(i => 
+  return range(0, -beats * 4, -1).map(i => 
     notePair({
       creator: 'runDown',
       mode: mode.name,
@@ -207,9 +207,9 @@ function runDown({ root, mode }) {
   ).flat();
 }
 
-function arpeggioUp({ root, mode }) {
+function arpeggioUp({ root, mode, beats }) {
   const startPitch = root + probable.pick(mode.intervals);
-  return range(16).map(i => 
+  return range(beats * 4).map(i => 
     notePair({
       creator: 'arpeggioUp',
       mode: mode.name,
@@ -224,9 +224,9 @@ function arpeggioUp({ root, mode }) {
   ).flat();
 }
 
-function arpeggioDown({ root, mode }) {
+function arpeggioDown({ root, mode, beats }) {
   const startPitch = root + probable.pick(mode.intervals);
-  return range(0, -16, -1).map(i => 
+  return range(0, -beats * 4, -1).map(i => 
     notePair({
       creator: 'arpeggioDown',
       mode: mode.name,
@@ -241,8 +241,8 @@ function arpeggioDown({ root, mode }) {
   ).flat();
 }
 
-function randomNotes({ root, mode }) {
-  return range(16).map(i => 
+function randomNotes({ root, mode, beats }) {
+  return range(beats * 4).map(i => 
     notePair({
       creator: 'randomNotes',
       mode: mode.name,
