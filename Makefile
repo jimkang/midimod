@@ -1,5 +1,5 @@
-SEED = greatestsolo
-SECTIONS = 3
+SEED = yngwie
+SECTIONS = 8
 
 pushall:
 	git push origin main

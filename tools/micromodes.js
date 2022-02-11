@@ -180,7 +180,7 @@ for (let sectionIndex = 0; sectionIndex < sectionCount; ++sectionIndex) {
     leadSection = leadSection.concat(notePair(
       {
         length: sixteenthNoteTicks * 4,
-        noteNumber: endBaseNote
+        noteNumber: endBaseNote + 7
       }
     ));
   }
@@ -230,7 +230,8 @@ function tracksForSection({ sectionBarCount, sectionRoot, allowLooseLeadMode = f
   function eventsForLeadBar(useLooseLeadMode, degreeRoot) {
     const octave = probable.roll(2) + 2;
     const barMode = useLooseLeadMode ? modesTable.roll() : sectionMode;
-    const root = useLooseLeadMode ? getPitchInMode(sectionRoot, degreeRoot, barMode) : octave * 12 + sectionRoot + rootsOffset;
+    const niceRoot = octave * 12 + sectionRoot + rootsOffset;
+    const root = useLooseLeadMode ? getPitchInMode(niceRoot, degreeRoot, barMode) : niceRoot;
     var events = range(2).map(() => leadBeatPatternTable.roll()({
       root, 
       mode: barMode,
