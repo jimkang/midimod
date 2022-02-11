@@ -68,36 +68,39 @@ var infoTrack = [
   }
 ];
 
-var modes = [
-  {
-    name: 'Ionian',
-    intervals: [0, 2, 4, 5, 7, 9, 11, 12],
-  },
-  {
-    name: 'Dorian',
-    intervals: [0, 2, 3, 5, 7, 9, 10, 12],
-  },
-  {
+var modesTable = probable.createTableFromSizes([
+  [3,
+    {
+      name: 'Ionian',
+      intervals: [0, 2, 4, 5, 7, 9, 11, 12],
+    }],
+  [3,
+    {
+      name: 'Dorian',
+      intervals: [0, 2, 3, 5, 7, 9, 10, 12],
+    }],
+  [1, {
     name: 'Phrygian',
     intervals: [0, 1, 3, 5, 6, 8, 10, 12],
-  },
-  {
+  }],
+  // It's having a hard time making this work.
+  [0, {
     name: 'Lydian',
     intervals: [0, 2, 4, 6, 7, 9, 11, 12],
-  },
-  {
+  }],
+  [2, {
     name: 'Mixolydian',
     intervals: [0, 2, 4, 5, 7, 9, 10, 12],
-  },
-  {
+  }],
+  [3, {
     name: 'Aeolian',
     intervals: [0, 2, 3, 5, 7, 8, 10, 12],
-  },
-  {
+  }],
+  [1, {
     name: 'Locrian',
     intervals: [0, 1, 3, 5, 6, 8, 10, 12]
-  },
-];
+  }],
+]);
 
 var leadBeatPatternTable = probable.createTableFromSizes([
   [2, runUp],
@@ -118,11 +121,25 @@ var firmusIntervalChoiceTables = {
     [1, 4],
   ]),
 };
-    
+
+var riffModeDegreeTable = probable.createTableFromSizes([
+  [30, 0],
+  [3, 1],
+  [4, 2],
+  [5, 3],
+  [8, 4],
+  [3, 5],
+  [5, 6],
+  [12, 7],
+]);
+
+var riffs = range(sectionCount).map(() => range(8).map(() => riffModeDegreeTable.roll()));
 var rhythmTrack = [];
 var leadTrack = [];
 var pieceRoot = probable.roll(12);
-var rootsMode = probable.pick(modes);
+var rootsMode = modesTable.roll();
+
+console.log('riffs', riffs);
 console.log('rootsMode', rootsMode);
 
 for (let sectionIndex = 0; sectionIndex < sectionCount; ++sectionIndex) {
@@ -130,7 +147,7 @@ for (let sectionIndex = 0; sectionIndex < sectionCount; ++sectionIndex) {
     sectionBarCount: 4, 
     sectionRoot: pieceRoot + probable.pick(rootsMode.intervals) + 24, 
     allowRandomLeadMode: sectionIndex > 0 && sectionIndex === sectionCount - 1,
-    sectionMode: sectionIndex > 0 && sectionIndex === sectionCount - 1 ? rootsMode : probable.pick(modes)
+    sectionMode: sectionIndex > 0 && sectionIndex === sectionCount - 1 ? rootsMode : modesTable.roll()
   });
   rhythmTrack = rhythmTrack.concat(rhythmSection);
   leadTrack = leadTrack.concat(leadSection);
@@ -140,13 +157,13 @@ for (let sectionIndex = 0; sectionIndex < sectionCount; ++sectionIndex) {
 rhythmTrack = rhythmTrack.concat(notePair(
   {
     length: sixteenthNoteTicks * 4,
-    noteNumber: pieceRoot + 36 + probable.rollDie(2)
+    noteNumber: pieceRoot + 24 + probable.rollDie(2)
   }
 ));
 leadTrack = leadTrack.concat(notePair(
   {
     length: sixteenthNoteTicks * 4,
-    noteNumber: pieceRoot + 36 * probable.rollDie(3) + getIntervalMelodic(rootsMode, 1, 1)
+    noteNumber: pieceRoot + 24 * probable.rollDie(3) + 7
   }
 ));
 
@@ -165,7 +182,7 @@ var outputBuffer = Buffer.from(outputMidi);
 fs.writeFileSync(path.join(__dirname, '..', outputPath), outputBuffer);
 
 function tracksForSection({ sectionBarCount, sectionRoot, allowRandomLeadMode = false, sectionMode }) {
-  console.log('sectionMode', sectionMode, 'sectionRoot', sectionRoot);
+  console.log('sectionMode', sectionMode.name, 'sectionRoot', sectionRoot);
 
   const progressionOctave = probable.roll(2) + 1;
   var measureRoots = range(sectionBarCount)
@@ -180,17 +197,19 @@ function tracksForSection({ sectionBarCount, sectionRoot, allowRandomLeadMode = 
   var leadSection = measureRoots.map(curry(eventsForLeadBar)(allowRandomLeadMode)).flat();
   return { rhythmSection, leadSection };
 
-  function eventsForRhythmBar(barRoot) {
-    return notePair({ noteNumber: barRoot, length: sixteenthNoteTicks * 2, velocity: 80 })
-      .concat(
-        range(7).map(() => notePair({ noteNumber: barRoot, length: sixteenthNoteTicks * 2,})).flat()
-      );
+  function eventsForRhythmBar(barRoot, measureIndex) {
+    var riff = riffs[Math.floor(measureIndex / sectionCount)];
+    return range(8).map(eventIndex => notePair({
+      velocity: [2, 6].includes(eventIndex) ? 80 : 64,
+      noteNumber: getPitchInMode(barRoot, riff[eventIndex], sectionMode),
+      length: sixteenthNoteTicks * 2
+    })).flat();
   }
 
   function eventsForLeadBar(useRandomMode, barRoot) {
-    const octave = 1 + probable.roll(3);
+    const octave = probable.roll(2);
     const root = octave * 12 + barRoot;
-    const barMode = useRandomMode ? probable.pick(modes) : sectionMode;
+    const barMode = useRandomMode ? modesTable.roll() : sectionMode;
     var events = range(4).map(() => leadBeatPatternTable.roll()({ root, mode: barMode, beats: 1 })).flat();
     var badEvent = events.find(e => isNaN(e.noteNumber)); 
     if (badEvent) {

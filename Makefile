@@ -1,3 +1,5 @@
+SEED = goodsolo
+
 pushall:
 	git push origin main
 
@@ -6,11 +8,11 @@ try-rhythm:
     --sections 4 \
     --output out/micromodes-rhythm.mid \
     --role rhythm \
-    --seed yo
+    --seed $(SEED)
 
 try-lead:
 	node tools/micromodes.js \
     --sections 4 \
     --output out/micromodes-lead.mid \
     --role lead \
-    --seed yo
+    --seed $(SEED)
