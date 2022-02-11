@@ -129,7 +129,8 @@ for (let sectionIndex = 0; sectionIndex < sectionCount; ++sectionIndex) {
   let { rhythmSection, leadSection } = tracksForSection({
     sectionBarCount: 4, 
     sectionRoot: pieceRoot + probable.pick(rootsMode.intervals) + 24, 
-    allowRandomLeadMode: sectionIndex > 0 && sectionIndex === sectionCount - 1
+    allowRandomLeadMode: sectionIndex > 0 && sectionIndex === sectionCount - 1,
+    sectionMode: sectionIndex > 0 && sectionIndex === sectionCount - 1 ? rootsMode : probable.pick(modes)
   });
   rhythmTrack = rhythmTrack.concat(rhythmSection);
   leadTrack = leadTrack.concat(leadSection);
@@ -163,8 +164,7 @@ var outputMidi = writeMidi(midiObject);
 var outputBuffer = Buffer.from(outputMidi);
 fs.writeFileSync(path.join(__dirname, '..', outputPath), outputBuffer);
 
-function tracksForSection({ sectionBarCount, sectionRoot, allowRandomLeadMode = false }) {
-  var sectionMode = probable.pick(modes);
+function tracksForSection({ sectionBarCount, sectionRoot, allowRandomLeadMode = false, sectionMode }) {
   console.log('sectionMode', sectionMode, 'sectionRoot', sectionRoot);
 
   const progressionOctave = probable.roll(2) + 1;
