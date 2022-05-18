@@ -110,12 +110,23 @@ var modesTable = probable.createTableFromSizes([
     }],
 ]);
 
+var theme = [
+  { degree: 0, length: sixteenthNoteTicks * 3 },
+  { degree: 0, length: sixteenthNoteTicks * 2 },
+  { degree: 2, length: sixteenthNoteTicks * 3 },
+  { degree: 0, length: sixteenthNoteTicks * 3 },
+  { degree: 0, length: sixteenthNoteTicks * 2 },
+  { degree: 2, length: sixteenthNoteTicks * 3 },
+  { degree: -1, length: sixteenthNoteTicks * 4 },
+];
+
 var leadBeatPatternTable = probable.createTableFromSizes([
   [1, runUp],
   [1, runDown],
   [1, arpeggioUp],
   [1, arpeggioDown],
-  [8, randomNotes]
+  [2, randomNotes],
+  [8, variantOnTheme]
 ]);
 
 var phraseLengthTable = probable.createTableFromSizes([
@@ -318,6 +329,19 @@ function randomNotes({ root, mode, beats }) {
       mode: mode.name,
       length: sixteenthNoteTicks,
       noteNumber: getPitchInMode(root, probable.roll(mode.intervals.length), mode),
+      velocity: probable.roll(32) + 48 + (i === 0 ? 32 : 0),
+    })
+  ).flat();
+}
+
+function variantOnTheme({ root, mode }) {
+  // TODO: Actual variation
+  return theme.map(({ degree, length }, i) => 
+    notePair({
+      creator: 'variantOnTheme',
+      mode: mode.name,
+      length,
+      noteNumber: getPitchInMode(root, degree, mode),
       velocity: probable.roll(32) + 48 + (i === 0 ? 32 : 0),
     })
   ).flat();
