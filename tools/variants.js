@@ -24,7 +24,7 @@ var {
 
 if (!outputPath || !sectionCount) {
   console.error(
-    `Usage: node micromodes
+    `Usage: node variants
       --sections <number of sections>
       [--barsPerSection <bars in each section>]
       --output <output file path>'
@@ -73,7 +73,7 @@ var infoTrack = [
 ];
 
 var modesTable = probable.createTableFromSizes([
-  [5,
+  [0,//5,
     {
       name: 'Ionian',
       intervals: [0, 2, 4, 5, 7, 9, 11, 12],
@@ -88,22 +88,26 @@ var modesTable = probable.createTableFromSizes([
     intervals: [0, 1, 3, 5, 6, 8, 10],
   }],
   // It's having a hard time making this work.
-  [1, {
-    name: 'Lydian',
-    intervals: [0, 2, 4, 6, 7, 9, 11],
-  }],
-  [2, {
-    name: 'Mixolydian',
-    intervals: [0, 2, 4, 5, 7, 9, 10],
-  }],
-  [7, {
-    name: 'Aeolian',
-    intervals: [0, 2, 3, 5, 7, 8, 10],
-  }],
-  [2, {
-    name: 'Locrian',
-    intervals: [0, 1, 3, 5, 6, 8, 10]
-  }],
+  [0,//1,
+    {
+      name: 'Lydian',
+      intervals: [0, 2, 4, 6, 7, 9, 11],
+    }],
+  [0,//2, 
+    {
+      name: 'Mixolydian',
+      intervals: [0, 2, 4, 5, 7, 9, 10],
+    }],
+  [0,//7, 
+    {
+      name: 'Aeolian',
+      intervals: [0, 2, 3, 5, 7, 8, 10],
+    }],
+  [2,
+    {
+      name: 'Locrian',
+      intervals: [0, 1, 3, 5, 6, 8, 10]
+    }],
 ]);
 
 var leadBeatPatternTable = probable.createTableFromSizes([
