@@ -37,7 +37,7 @@ if (!seed) {
   seed = randomId(5);
 }
 if (!barsPerSection) {
-  barsPerSection = 12;
+  barsPerSection = 4;
 }
 
 console.log('Seed:', seed);
@@ -335,16 +335,40 @@ function randomNotes({ root, mode, beats }) {
 }
 
 function variantOnTheme({ root, mode }) {
-  // TODO: Actual variation
-  return theme.map(({ degree, length }, i) => 
-    notePair({
+  var timeRemaining = 20 * sixteenthNoteTicks;
+  return theme.map(getThemeEvent).flat();
+
+  function getThemeEvent({ degree, length }, i) {
+    if (i !== 0 && probable.roll(3) === 0) {
+      const goUp = probable.roll(2); 
+      if (probable.roll(4) === 0) {
+        degree += goUp ? 1 : -1;
+      } else {
+        degree += (goUp ? 1 : -1) * probable.pick([2, 4, 7]);
+      }
+    }
+    if (i !== 0 && probable.roll(3) === 0) {
+      length += (probable.roll(2) === 0 ? -1 : 1) * (probable.roll(3) === 0 ? 2 : 1) * sixteenthNoteTicks;
+      if (length < sixteenthNoteTicks) {
+        length = sixteenthNoteTicks;
+      }
+      if (length > timeRemaining) {
+        length = timeRemaining;
+      }
+      if (i === theme.length - 1 && length < timeRemaining) {
+        length = timeRemaining;
+      }
+    }
+    timeRemaining -= length;
+        
+    return notePair({
       creator: 'variantOnTheme',
       mode: mode.name,
       length,
       noteNumber: getPitchInMode(root, degree, mode),
       velocity: probable.roll(32) + 48 + (i === 0 ? 32 : 0),
-    })
-  ).flat();
+    });
+  }
 }
 
 function notePair({ length = sixteenthNoteTicks, channel = 0, noteNumber, velocity = 64, creator, mode }) {
