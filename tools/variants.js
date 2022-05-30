@@ -121,8 +121,8 @@ var theme = [
 ];
 
 var leadBeatPatternTable = probable.createTableFromSizes([
-  [1, runUp],
-  [1, runDown],
+  //[1, runUp],
+  //[1, runDown],
   [1, arpeggioUp],
   [1, arpeggioDown],
   [2, randomNotes],
