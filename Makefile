@@ -20,3 +20,12 @@ try-lead:
     --output out/micromodes-lead.mid \
     --role lead \
     --seed $(SEED)
+
+gs-bass:
+	node tools/gear-shift.js --sections 12 --barsPerSection 4 --output out/gear-shift-bass.mid --role bass --seed itislate
+
+gs-rhythm-gtr:
+	node tools/gear-shift.js --sections 12 --barsPerSection 4 --output out/gear-shift-gtr2.mid --role rhythm --seed itislate
+
+gs-gtr:
+	node tools/gear-shift.js --sections 12 --barsPerSection 4 --output out/gear-shift-gtr.mid --role lead --seed itislate
