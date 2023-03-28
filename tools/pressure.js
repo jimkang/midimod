@@ -112,6 +112,7 @@ var leadBeatPatternTable = probable.createTableFromSizes([
   [1, arpeggioUp],
   [1, arpeggioDown],
   [2, randomNotes],
+  [100, tapping]
 ]);
 
 var phraseLengthTable = probable.createTableFromSizes([
@@ -130,6 +131,23 @@ var firmusModeDegreeChoiceTables = {
     [1, 4],
   ]),
 };
+
+var tapPatternLengthTable = probable.createTableFromSizes([
+  [1, 2],
+  [4, 3],
+  [5, 4],
+  [1, 5]
+]);
+
+var tapDegreeOffsetTable = probable.createTableFromSizes([
+  [8, 0],
+  [3, 7],
+  [3, 4],
+  [2, 3],
+  [3, 2],
+  [1, 5],
+  [1, 6]
+]);
 
 var leadTrack = [];
 var pieceRoot = 2;//probable.roll(12);
@@ -308,6 +326,26 @@ function arpeggioDown({ root, startDegree, mode, beats }) {
   ).flat();
 }
 
+function tapping({ root, startDegree, mode, beats }) {
+  var tapDegreeOffsetPattern = range(tapPatternLengthTable.roll()).map(() => tapDegreeOffsetTable.roll());
+  return range(0, beats * 4, 1).map(getTapNotePair).flat();
+
+  function getTapNotePair(i) {
+    const offset = tapDegreeOffsetPattern[i % tapDegreeOffsetPattern.length];
+    return notePair({
+      creator: 'tapping',
+      mode: mode.name,
+      length: sixteenthNoteTicks,
+      noteNumber: getPitchInMode(
+        root,
+        startDegree + offset,
+        mode
+      ),
+      velocity: getLeadBeatVelocity(4 - (i % 4))
+    });
+  }
+}
+
 // TODO: Tapping, tappingWithMovingRoot
 
 function randomNotes({ root, mode, beats }) {
@@ -373,7 +411,7 @@ function getDegreeForArpeggio({ modeLength, startDegree, arpeggioStep }) {
   if (offset < 0) {
     offset = 3 + offset;
   }
-  return startDegree + octave * modeLength + [0, 2, 4][offset];
+  return startDegree + octave + modeLength + [0, 2, 4][offset];
 }
 
 function getModeDegreeMelodic(noteNumber, noteTotal) {
