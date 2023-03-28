@@ -29,3 +29,6 @@ gs-rhythm-gtr:
 
 gs-gtr:
 	node tools/gear-shift.js --sections 12 --barsPerSection 4 --output out/gear-shift-gtr.mid --role lead --seed itislate
+
+pressure-gtr:
+	node tools/pressure.js --sections 3 --barsPerSection 4 --output out/pressure.mid --role lead --seed tapping
