@@ -131,7 +131,8 @@ var leadBeatPatternTable = probable.createTableFromSizes([
   [1, arpeggioUp],
   [1, arpeggioDown],
   [2, randomNotes],
-  [100, tapping],
+  [1, tapping],
+  [100, shiftTapping],
 ]);
 
 var phraseLengthTable = probable.createTableFromSizes([
@@ -360,9 +361,28 @@ function arpeggioDown({ root, startDegree, mode, beats }) {
     .flat();
 }
 
-function tapping({ root, startDegree, mode, beats }) {
+function shiftTapping({ root, startDegree, mode, beats }) {
+  return tapping({
+    root,
+    startDegree,
+    mode,
+    beats,
+    rootMovementDirection: probable.roll(2) === 0 ? -1 : 1,
+    creatorName: 'shiftTapping',
+  });
+}
+
+function tapping({
+  root,
+  startDegree,
+  mode,
+  beats,
+  rootMovementDirection = 0,
+  creatorName = 'tapping',
+}) {
   var tapDegreeOffsetPattern = [];
   const tapDegreeOffsetPatternLength = tapPatternLengthTable.roll();
+  var patternHitsRoot = false;
   for (
     let i = 0;
     tapDegreeOffsetPattern.length < tapDegreeOffsetPatternLength;
@@ -371,14 +391,30 @@ function tapping({ root, startDegree, mode, beats }) {
     const offset = tapDegreeOffsetTable.roll();
     if (i < 1 || tapDegreeOffsetPattern[i - 1] !== offset) {
       tapDegreeOffsetPattern.push(offset);
+      if (offset === 0) {
+        patternHitsRoot = true;
+      }
     }
   }
+
+  if (!patternHitsRoot) {
+    tapDegreeOffsetPattern.pop();
+    tapDegreeOffsetPattern.unshift(0);
+    debugger;
+  }
+
+  var rootMoveStep = rootMovementDirection;
+
   return range(0, beats * 4, 1)
     .reduce(getTapNotePair, [])
     .flat();
 
   function getTapNotePair(notePairs, i) {
-    const offset = tapDegreeOffsetPattern[i % tapDegreeOffsetPattern.length];
+    var offset = tapDegreeOffsetPattern[i % tapDegreeOffsetPattern.length];
+    if (offset === 0) {
+      offset += rootMoveStep;
+      rootMoveStep += rootMovementDirection;
+    }
     var noteNumber = getPitchInMode(root, startDegree + offset, mode);
     if (i > 0 && noteNumber === notePairs[i - 1][0].noteNumber) {
       // Hack: Avoid repeating pitches.
@@ -387,7 +423,7 @@ function tapping({ root, startDegree, mode, beats }) {
 
     notePairs.push(
       notePair({
-        creator: 'tapping',
+        creator: creatorName,
         mode: mode.name,
         length: sixteenthNoteTicks,
         noteNumber,
