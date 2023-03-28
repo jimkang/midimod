@@ -74,7 +74,7 @@ var infoTrack = [
 
 var modesTable = probable.createTableFromSizes([
   [
-    5,
+    0,
     {
       name: 'Ionian',
       intervals: [0, 2, 4, 5, 7, 9, 11, 12],
@@ -96,14 +96,14 @@ var modesTable = probable.createTableFromSizes([
   ],
   // It's having a hard time making this work.
   [
-    1,
+    0,
     {
       name: 'Lydian',
       intervals: [0, 2, 4, 6, 7, 9, 11],
     },
   ],
   [
-    2,
+    0,
     {
       name: 'Mixolydian',
       intervals: [0, 2, 4, 5, 7, 9, 10],
@@ -126,13 +126,13 @@ var modesTable = probable.createTableFromSizes([
 ]);
 
 var leadBeatPatternTable = probable.createTableFromSizes([
-  [1, runUp],
-  [1, runDown],
+  [0, runUp],
+  [0, runDown],
   [1, arpeggioUp],
-  [1, arpeggioDown],
+  [0, arpeggioDown],
   [2, randomNotes],
-  [1, tapping],
-  [100, shiftTapping],
+  [10, tapping],
+  [10, shiftTapping],
 ]);
 
 var phraseLengthTable = probable.createTableFromSizes([
@@ -171,7 +171,7 @@ var tapDegreeOffsetTable = probable.createTableFromSizes([
 
 var leadTrack = [];
 var pieceRoot = 2; //probable.roll(12);
-var rootsMode = modesTable.roll();
+var rootsMode = { name: 'root-and-fifth', intervals: [0, 4, 4, 0] };
 
 //console.log('riffs', riffs);
 console.log('rootsMode', rootsMode);
@@ -227,8 +227,17 @@ var midiObject = {
   // Also can't seem to make things in channel 1 work.
   tracks: [infoTrack, eventsTrack],
 };
-
-console.log(JSON.stringify(midiObject, null, 2));
+console.log(
+  'creators:',
+  JSON.stringify(
+    eventsTrack
+      .reduce((evens, e, i) => (i % 2 === 0 ? evens.concat([e]) : evens), [])
+      .map((e) => e.creator),
+    null,
+    2
+  )
+);
+//console.log(JSON.stringify(midiObject, null, 2));
 
 var outputMidi = writeMidi(midiObject);
 var outputBuffer = Buffer.from(outputMidi);
@@ -400,7 +409,6 @@ function tapping({
   if (!patternHitsRoot) {
     tapDegreeOffsetPattern.pop();
     tapDegreeOffsetPattern.unshift(0);
-    debugger;
   }
 
   var rootMoveStep = rootMovementDirection;
