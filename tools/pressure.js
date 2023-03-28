@@ -81,14 +81,14 @@ var modesTable = probable.createTableFromSizes([
     },
   ],
   [
-    3,
+    0,
     {
       name: 'Dorian',
       intervals: [0, 2, 3, 5, 7, 9, 10],
     },
   ],
   [
-    2,
+    1,
     {
       name: 'Phrygian',
       intervals: [0, 1, 3, 5, 6, 8, 10],
@@ -117,7 +117,7 @@ var modesTable = probable.createTableFromSizes([
     },
   ],
   [
-    2,
+    0,
     {
       name: 'Locrian',
       intervals: [0, 1, 3, 5, 6, 8, 10],
@@ -125,15 +125,24 @@ var modesTable = probable.createTableFromSizes([
   ],
 ]);
 
-var leadBeatPatternTable = probable.createTableFromSizes([
-  [0, runUp],
-  [0, runDown],
-  [1, arpeggioUp],
-  [0, arpeggioDown],
-  [2, randomNotes],
-  [10, tapping],
-  [10, shiftTapping],
-]);
+var leadBeatPatternSequence = [
+  randomNotes,
+  randomNotes,
+  tapping,
+  tapping,
+  tapping,
+  tapping,
+  tapping,
+  shiftTapping,
+  shiftTapping,
+  shiftTapping,
+  shiftTapping,
+  arpeggioUp,
+  arpeggioUp,
+  tapping,
+  shiftTapping,
+  tapping,
+];
 
 var phraseLengthTable = probable.createTableFromSizes([
   //[3, 1],
@@ -170,10 +179,10 @@ var tapDegreeOffsetTable = probable.createTableFromSizes([
 ]);
 
 var leadTrack = [];
-var pieceRoot = 2; //probable.roll(12);
-var rootsMode = { name: 'root-and-fifth', intervals: [0, 4, 4, 0] };
+// C1 is 24.
+const pieceRoot = 2; //probable.roll(12);
+var rootsMode = { name: 'root-and-fifth', intervals: [0, 0, 4, 0] };
 
-//console.log('riffs', riffs);
 console.log('rootsMode', rootsMode);
 
 var currentSectionMode;
@@ -203,15 +212,17 @@ for (let sectionIndex = 0; sectionIndex < sectionCount; ++sectionIndex) {
     sectionBarCount: barsPerSection,
     sectionRoot,
     sectionMode,
+    sectionIndex,
   });
 
   if (sectionIndex === sectionCount - 1) {
     // Add final note.
-    const endBaseNote = pieceRoot + rootsMode.intervals[sectionIndex - 1] + 24;
+    const endBaseNote = pieceRoot + rootsMode.intervals[sectionIndex] + 72;
     leadSection = leadSection.concat(
       notePair({
+        creator: 'end note',
         length: sixteenthNoteTicks * 16,
-        noteNumber: endBaseNote + 7,
+        noteNumber: endBaseNote,
       })
     );
   }
@@ -243,7 +254,12 @@ var outputMidi = writeMidi(midiObject);
 var outputBuffer = Buffer.from(outputMidi);
 fs.writeFileSync(path.join(__dirname, '..', outputPath), outputBuffer);
 
-function tracksForSection({ sectionBarCount, sectionRoot, sectionMode }) {
+function tracksForSection({
+  sectionBarCount,
+  sectionRoot,
+  sectionMode,
+  sectionIndex,
+}) {
   console.log('sectionMode', sectionMode.name, 'sectionRoot', sectionRoot);
 
   //const progressionOctave = probable.roll(2);
@@ -257,18 +273,25 @@ function tracksForSection({ sectionBarCount, sectionRoot, sectionMode }) {
   var leadSection = measureModeDegrees.map(eventsForLeadBar).flat();
   return { leadSection };
 
-  function eventsForLeadBar(degreeRoot) {
+  function eventsForLeadBar(degreeRoot, barIndex) {
     const niceRoot = sectionRoot + 5 * 12;
     //const root = useLooseLeadMode ? getPitchInMode(niceRoot, degreeRoot, barMode) : niceRoot;
     const root = niceRoot;
     var events = [];
+
     for (let beatsFilled = 0; beatsFilled < 4; ) {
       let phraseLength = phraseLengthTable.roll();
       const beatsRemaining = 4 - beatsFilled;
       if (phraseLength > beatsRemaining) {
         phraseLength = beatsRemaining;
       }
-      let eventsForPhrase = leadBeatPatternTable.roll()({
+
+      //pattern = leadBeatPatternTable.roll();
+      var pattern =
+        leadBeatPatternSequence[sectionIndex * sectionBarCount + barIndex];
+      console.log(sectionIndex, 'barIndex', barIndex, pattern);
+
+      let eventsForPhrase = pattern({
         root,
         mode: sectionMode,
         startDegree: degreeRoot,
@@ -290,20 +313,6 @@ function tracksForSection({ sectionBarCount, sectionRoot, sectionMode }) {
     }
     return events;
   }
-}
-
-function runUp({ root, startDegree, mode, beats }) {
-  return range(beats * 4)
-    .map((i) =>
-      notePair({
-        creator: 'runUp',
-        mode: mode.name,
-        length: sixteenthNoteTicks,
-        noteNumber: getPitchInMode(root, startDegree + i, mode),
-        velocity: getLeadBeatVelocity(i % 4),
-      })
-    )
-    .flat();
 }
 
 function runDown({ root, startDegree, mode, beats }) {
@@ -342,29 +351,6 @@ function arpeggioUp({ root, startDegree, mode, beats }) {
           mode
         ),
         velocity: getLeadBeatVelocity(i % 4),
-      })
-    )
-    .flat();
-}
-
-function arpeggioDown({ root, startDegree, mode, beats }) {
-  return range(0, -beats * 4, -1)
-    .map((i) =>
-      notePair({
-        creator: 'arpeggioDown',
-        mode: mode.name,
-        length: sixteenthNoteTicks,
-        noteNumber: getPitchInMode(
-          root,
-          getDegreeForArpeggio({
-            modeLength: mode.intervals.length,
-            startDegree,
-            // arpeggioStep will go 0 -1 -2 -3 -1 -2 -3 -4...
-            arpeggioStep: (i % 4) + Math.ceil(i / 4),
-          }),
-          mode
-        ),
-        velocity: getLeadBeatVelocity(4 - (i % 4)),
       })
     )
     .flat();
