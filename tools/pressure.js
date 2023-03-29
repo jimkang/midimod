@@ -74,21 +74,21 @@ var infoTrack = [
 
 var modesTable = probable.createTableFromSizes([
   [
-    0,
+    1,
     {
       name: 'Ionian',
       intervals: [0, 2, 4, 5, 7, 9, 11, 12],
     },
   ],
   [
-    0,
+    1,
     {
       name: 'Dorian',
       intervals: [0, 2, 3, 5, 7, 9, 10],
     },
   ],
   [
-    1,
+    0,
     {
       name: 'Phrygian',
       intervals: [0, 1, 3, 5, 6, 8, 10],
@@ -126,21 +126,21 @@ var modesTable = probable.createTableFromSizes([
 ]);
 
 var leadBeatPatternSequence = [
+  tapping,
+  tapping,
+  tapping,
+  tapping,
+  shiftTapping,
+  shiftTapping,
+  shiftTapping,
+  shiftTapping,
   randomNotes,
   randomNotes,
-  tapping,
-  tapping,
-  tapping,
-  tapping,
-  tapping,
-  shiftTapping,
-  shiftTapping,
-  shiftTapping,
-  shiftTapping,
   arpeggioUp,
   arpeggioUp,
   tapping,
   shiftTapping,
+  tapping,
   tapping,
 ];
 
@@ -181,7 +181,7 @@ var tapDegreeOffsetTable = probable.createTableFromSizes([
 var leadTrack = [];
 // C1 is 24.
 const pieceRoot = 2; //probable.roll(12);
-var rootsMode = { name: 'root-and-fifth', intervals: [0, 0, 4, 0] };
+var rootsMode = { name: 'root-mostly', intervals: [0, 0, 0, 0] };
 
 console.log('rootsMode', rootsMode);
 
@@ -189,16 +189,10 @@ var currentSectionMode;
 
 for (let sectionIndex = 0; sectionIndex < sectionCount; ++sectionIndex) {
   var sectionMode;
-  if (sectionIndex > 0 && sectionIndex === sectionCount - 1) {
-    sectionMode = rootsMode;
-  } else {
-    do {
-      sectionMode = modesTable.roll();
-    } while (
-      currentSectionMode &&
-      sectionMode.name === currentSectionMode.name
-    );
-  }
+  do {
+    sectionMode = modesTable.roll();
+  } while (currentSectionMode && sectionMode.name === currentSectionMode.name);
+
   currentSectionMode = sectionMode;
   var sectionRoot =
     pieceRoot +
@@ -315,24 +309,6 @@ function tracksForSection({
   }
 }
 
-function runDown({ root, startDegree, mode, beats }) {
-  return range(0, -beats * 4, -1)
-    .map(getNotePair)
-    .flat();
-
-  function getNotePair(i) {
-    const noteNumber = getPitchInMode(root, startDegree + i, mode);
-    //console.log('runDown', root, startDegree, i, noteNumber);
-    return notePair({
-      creator: 'runDown',
-      mode: mode.name,
-      length: sixteenthNoteTicks,
-      noteNumber,
-      velocity: getLeadBeatVelocity(4 - (i % i)),
-    });
-  }
-}
-
 function arpeggioUp({ root, startDegree, mode, beats }) {
   return range(beats * 4)
     .map((i) =>
@@ -362,7 +338,7 @@ function shiftTapping({ root, startDegree, mode, beats }) {
     startDegree,
     mode,
     beats,
-    rootMovementDirection: probable.roll(2) === 0 ? -1 : 1,
+    rootMovementDirection: 1, //probable.roll(2) === 0 ? -1 : 1,
     creatorName: 'shiftTapping',
   });
 }
@@ -373,6 +349,7 @@ function tapping({
   mode,
   beats,
   rootMovementDirection = 0,
+  numberOfNotesToHoldRootFor = 3,
   creatorName = 'tapping',
 }) {
   var tapDegreeOffsetPattern = [];
@@ -398,6 +375,7 @@ function tapping({
   }
 
   var rootMoveStep = rootMovementDirection;
+  var moveStepUseCount = 0;
 
   return range(0, beats * 4, 1)
     .reduce(getTapNotePair, [])
@@ -407,7 +385,10 @@ function tapping({
     var offset = tapDegreeOffsetPattern[i % tapDegreeOffsetPattern.length];
     if (offset === 0) {
       offset += rootMoveStep;
-      rootMoveStep += rootMovementDirection;
+      moveStepUseCount += 1;
+      if (moveStepUseCount % numberOfNotesToHoldRootFor == 0) {
+        rootMoveStep += rootMovementDirection;
+      }
     }
     var noteNumber = getPitchInMode(root, startDegree + offset, mode);
     if (i > 0 && noteNumber === notePairs[i - 1][0].noteNumber) {
